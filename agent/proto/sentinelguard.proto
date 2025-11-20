@@ -1,0 +1,122 @@
+syntax = "proto3";
+
+package sentinelguard;
+
+// gRPC service for UI communication
+service SentinelGuardService {
+    // Get real-time alerts
+    rpc GetAlerts(GetAlertsRequest) returns (stream Alert);
+    
+    // Get process risk overview
+    rpc GetProcessRiskOverview(GetProcessRiskOverviewRequest) returns (ProcessRiskOverview);
+    
+    // Get quarantined processes
+    rpc GetQuarantinedProcesses(GetQuarantinedProcessesRequest) returns (QuarantinedProcessesResponse);
+    
+    // Get detector logs
+    rpc GetDetectorLogs(GetDetectorLogsRequest) returns (DetectorLogsResponse);
+    
+    // Get system health
+    rpc GetSystemHealth(GetSystemHealthRequest) returns (SystemHealth);
+    
+    // Update configuration
+    rpc UpdateConfig(UpdateConfigRequest) returns (UpdateConfigResponse);
+    
+    // Release from quarantine
+    rpc ReleaseFromQuarantine(ReleaseFromQuarantineRequest) returns (ReleaseFromQuarantineResponse);
+}
+
+message GetAlertsRequest {
+    int64 since_timestamp = 1;
+}
+
+message Alert {
+    int64 id = 1;
+    uint32 process_id = 2;
+    string process_path = 3;
+    double ml_score = 4;
+    bool quarantined = 5;
+    int64 timestamp = 6;
+    repeated string triggered_detectors = 7;
+}
+
+message GetProcessRiskOverviewRequest {
+    int32 limit = 1;
+}
+
+message ProcessRiskOverview {
+    repeated ProcessRisk processes = 1;
+}
+
+message ProcessRisk {
+    uint32 process_id = 1;
+    string process_path = 2;
+    double risk_score = 3;
+    int64 last_activity = 4;
+    repeated string active_detectors = 5;
+}
+
+message GetQuarantinedProcessesRequest {
+}
+
+message QuarantinedProcessesResponse {
+    repeated QuarantinedProcess processes = 1;
+}
+
+message QuarantinedProcess {
+    uint32 process_id = 1;
+    string process_path = 2;
+    double ml_score = 3;
+    int64 quarantined_at = 4;
+    string reason = 5;
+}
+
+message GetDetectorLogsRequest {
+    int64 since_timestamp = 1;
+    int32 limit = 2;
+}
+
+message DetectorLogsResponse {
+    repeated DetectorLogEntry entries = 1;
+}
+
+message DetectorLogEntry {
+    string detector_name = 1;
+    uint32 process_id = 2;
+    double score = 3;
+    int64 timestamp = 4;
+    string details = 5;
+}
+
+message GetSystemHealthRequest {
+}
+
+message SystemHealth {
+    bool agent_running = 1;
+    bool driver_loaded = 2;
+    int64 events_per_second = 3;
+    int64 total_events = 4;
+    int32 active_processes = 5;
+    int32 quarantined_count = 6;
+    double cpu_usage = 7;
+    double memory_usage = 8;
+}
+
+message UpdateConfigRequest {
+    map<string, string> config_updates = 1;
+}
+
+message UpdateConfigResponse {
+    bool success = 1;
+    string message = 2;
+}
+
+message ReleaseFromQuarantineRequest {
+    uint32 process_id = 1;
+}
+
+message ReleaseFromQuarantineResponse {
+    bool success = 1;
+    string message = 2;
+}
+

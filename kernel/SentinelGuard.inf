@@ -1,0 +1,62 @@
+;
+; SentinelGuard Kernel Driver INF
+;
+
+[Version]
+Signature="$WINDOWS NT$"
+Class=System
+ClassGuid={4D36E97D-E325-11CE-BFC1-08002BE10318}
+Provider=%ManufacturerName%
+DriverVer=01/01/2024,1.0.0.0
+CatalogFile=SentinelGuard.cat
+PnpLockdown=1
+
+[DestinationDirs]
+DefaultDestDir = 12
+SentinelGuard_Device_CoInstaller_CopyFiles = 11
+
+[SourceDisksNames]
+1 = %DiskName%,,,""
+
+[SourceDisksFiles]
+SentinelGuard.sys = 1,,
+
+;*****************************************
+; Install Section
+;*****************************************
+
+[Manufacturer]
+%ManufacturerName%=Standard,NTamd64
+
+[Standard.NTamd64]
+%SentinelGuard.DeviceDesc%=SentinelGuard_Device, Root\SentinelGuard
+
+[SentinelGuard_Device.NT]
+CopyFiles=DriversDir
+
+[SentinelGuard_Device.NT.Services]
+AddService = SentinelGuard,%SPSVCINST_ASSOCSERVICE%, SentinelGuard_Service_Inst
+
+[SentinelGuard_Service_Inst]
+DisplayName    = %SentinelGuard.SVCDESC%
+ServiceType    = 1               ; SERVICE_KERNEL_DRIVER
+StartType      = 3               ; SERVICE_DEMAND_START
+ErrorControl   = 1               ; SERVICE_ERROR_NORMAL
+ServiceBinary  = %12%\SentinelGuard.sys
+
+[SentinelGuard_Device.NT.Wdf]
+KmdfService =  SentinelGuard, SentinelGuard_wdfsect
+
+[SentinelGuard_wdfsect]
+KmdfLibraryVersion = 1.15
+
+[DriversDir]
+SentinelGuard.sys
+
+[Strings]
+SPSVCINST_ASSOCSERVICE= 0x00000002
+ManufacturerName="SentinelGuard"
+DiskName = "SentinelGuard Installation Disk"
+SentinelGuard.DeviceDesc = "SentinelGuard Kernel Filter Driver"
+SentinelGuard.SVCDESC = "SentinelGuard Kernel Filter Driver"
+

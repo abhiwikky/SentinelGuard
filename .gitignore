@@ -1,0 +1,73 @@
+# Rust
+agent/target/
+**/*.rs.bk
+Cargo.lock
+
+# C++ Build
+kernel/build/
+quarantine/build/
+*.obj
+*.pdb
+*.ilk
+*.exp
+*.lib
+
+# Python
+ml/__pycache__/
+ml/*.pyc
+ml/models/*.onnx
+ml/models/*.joblib
+ml/.venv/
+ml/venv/
+
+# Node/UI
+ui/node_modules/
+ui/dist/
+ui/build/
+ui/.vite/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+logs/
+
+# Database
+*.db
+*.db-shm
+*.db-wal
+
+# Build artifacts
+*.exe
+*.dll
+*.sys
+*.pdb
+*.ilk
+*.exp
+
+# Installer
+*.msi
+*.exe
+installer-files/
+
+# Secrets
+*.pfx
+*.p12
+*.key
+*.pem
+certificates/
+
+# Test artifacts
+test_output/
+coverage/
+

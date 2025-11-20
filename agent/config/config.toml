@@ -1,0 +1,30 @@
+[database]
+path = "C:\\ProgramData\\SentinelGuard\\sentinelguard.db"
+
+[ml]
+model_path = "models\\ransomware_model.onnx"
+
+[quarantine]
+path = "C:\\Program Files\\SentinelGuard\\quarantine.exe"
+threshold = 0.7
+
+[detectors]
+entropy_threshold = 0.8
+mass_write_threshold = 50
+mass_write_window_seconds = 10
+rename_delete_threshold = 30
+rename_delete_window_seconds = 10
+
+ransom_note_patterns = [
+    "YOUR FILES HAVE BEEN ENCRYPTED",
+    "PAY BITCOIN",
+    ".locked",
+    ".encrypted"
+]
+
+yara_rules_path = "rules\\ransomware.yar"
+
+[communication]
+port_name = "\\SentinelGuardPort"
+buffer_size = 4096
+

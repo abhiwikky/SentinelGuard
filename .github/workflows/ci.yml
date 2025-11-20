@@ -1,0 +1,222 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  rust-agent:
+    name: Build Rust Agent
+    runs-on: windows-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+      
+      - name: Cache cargo dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            agent/target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+      
+      - name: Build Rust Agent
+        working-directory: agent
+        run: cargo build --release
+      
+      - name: Run Rust Tests
+        working-directory: agent
+        run: cargo test --release
+      
+      - name: Upload Rust Agent Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: sentinelguard-agent
+          path: agent/target/release/sentinelguard-agent.exe
+
+  kernel-driver:
+    name: Build Kernel Driver
+    runs-on: windows-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install WDK
+        run: |
+          # Download and install WDK
+          # Note: In production, use a pre-installed WDK image or install script
+          echo "WDK installation would happen here"
+      
+      - name: Build Kernel Driver
+        working-directory: kernel
+        run: |
+          mkdir build
+          cd build
+          cmake .. -G "Visual Studio 17 2022" -A x64
+          cmake --build . --config Release
+      
+      - name: Upload Kernel Driver Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: sentinelguard-driver
+          path: kernel/build/Release/SentinelGuard.sys
+
+  quarantine-module:
+    name: Build Quarantine Module
+    runs-on: windows-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Build Quarantine Module
+        working-directory: quarantine
+        run: |
+          mkdir build
+          cd build
+          cmake .. -G "Visual Studio 17 2022" -A x64
+          cmake --build . --config Release
+      
+      - name: Upload Quarantine Module Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: quarantine-module
+          path: quarantine/build/Release/quarantine.exe
+
+  ml-training:
+    name: Train ML Model
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      
+      - name: Install ML Dependencies
+        working-directory: ml
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      
+      - name: Train ML Model
+        working-directory: ml
+        run: python train_model.py
+      
+      - name: Upload ML Model Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: ml-model
+          path: ml/models/*.onnx
+
+  ui-build:
+    name: Build UI
+    runs-on: windows-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: ui/package-lock.json
+      
+      - name: Install UI Dependencies
+        working-directory: ui
+        run: npm ci
+      
+      - name: Build UI
+        working-directory: ui
+        run: npm run build
+      
+      - name: Upload UI Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: sentinelguard-ui
+          path: ui/dist
+
+  integration-tests:
+    name: Integration Tests
+    runs-on: windows-latest
+    needs: [rust-agent, kernel-driver, quarantine-module]
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Download Artifacts
+        uses: actions/download-artifact@v3
+        with:
+          path: artifacts
+      
+      - name: Run Integration Tests
+        run: |
+          # Run integration tests
+          # This would include:
+          # - Simulated ransomware detection
+          # - Quarantine functionality
+          # - End-to-end workflows
+          echo "Integration tests would run here"
+
+  code-signing:
+    name: Code Signing
+    runs-on: windows-latest
+    needs: [rust-agent, kernel-driver, quarantine-module]
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: Download Artifacts
+        uses: actions/download-artifact@v3
+        with:
+          path: artifacts
+      
+      - name: Code Sign Binaries
+        run: |
+          # Code signing would happen here
+          # Requires signing certificate in secrets
+          echo "Code signing would happen here"
+          # signtool sign /f certificate.pfx /p ${{ secrets.SIGNING_PASSWORD }} artifacts/**/*.exe
+          # signtool sign /f certificate.pfx /p ${{ secrets.SIGNING_PASSWORD }} artifacts/**/*.sys
+
+  package-installer:
+    name: Package Installer
+    runs-on: windows-latest
+    needs: [rust-agent, kernel-driver, quarantine-module, ui-build, ml-training, code-signing]
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v3
+        with:
+          path: installer-files
+      
+      - name: Create Installer
+        run: |
+          # Create installer package
+          # This would use WiX or similar tool
+          echo "Installer creation would happen here"
+      
+      - name: Upload Installer
+        uses: actions/upload-artifact@v3
+        with:
+          name: sentinelguard-installer
+          path: installer-files
