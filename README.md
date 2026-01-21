@@ -1,6 +1,6 @@
 # SentinelGuard — Real-Time Ransomware Detection & Intervention System
 
-[![CI/CD](https://github.com/yourusername/SentinelGuard/workflows/CI/badge.svg)](https://github.com/yourusername/SentinelGuard/actions)
+[![CI/CD](https://github.com/abhiwikky/SentinelGuard/workflows/CI/badge.svg)](https://github.com/abhiwikky/SentinelGuard/actions)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 **SentinelGuard** is an enterprise-grade, real-time ransomware detection and intervention system for Windows. It combines kernel-level monitoring, multi-detector analysis, machine learning correlation, and automated quarantine to protect systems from ransomware attacks.
