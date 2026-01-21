@@ -46,7 +46,7 @@ jobs:
         run: cargo test --release
       
       - name: Upload Rust Agent Artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: sentinelguard-agent
           path: agent/target/release/sentinelguard-agent.exe
@@ -73,7 +73,7 @@ jobs:
           cmake --build . --config Release
       
       - name: Upload Kernel Driver Artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: sentinelguard-driver
           path: kernel/build/Release/SentinelGuard.sys
@@ -94,7 +94,7 @@ jobs:
           cmake --build . --config Release
       
       - name: Upload Quarantine Module Artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: quarantine-module
           path: quarantine/build/Release/quarantine.exe
@@ -122,7 +122,7 @@ jobs:
         run: python train_model.py
       
       - name: Upload ML Model Artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ml-model
           path: ml/models/*.onnx
@@ -150,7 +150,7 @@ jobs:
         run: npm run build
       
       - name: Upload UI Artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: sentinelguard-ui
           path: ui/dist
@@ -216,7 +216,7 @@ jobs:
           echo "Installer creation would happen here"
       
       - name: Upload Installer
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: sentinelguard-installer
           path: installer-files
