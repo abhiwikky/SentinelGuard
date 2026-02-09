@@ -37,9 +37,6 @@ impl Detector for MassWriteDetector {
             return 0.0;
         }
 
-        // Calculate write rate
-        let write_rate = stats.file_writes as f32 / self.config.mass_write_window_seconds as f32;
-
         if stats.file_writes >= self.config.mass_write_threshold {
             // Normalize score based on threshold
             let excess = stats.file_writes - self.config.mass_write_threshold;

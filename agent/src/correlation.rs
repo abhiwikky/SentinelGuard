@@ -6,53 +6,39 @@ use anyhow::{Result, Context};
 use std::path::PathBuf;
 use std::sync::Arc;
 use tracing::{debug, warn};
-use ort::environment::Environment;
 use ort::session::Session;
-use ort::value::Value;
+use ort::value::TensorRef;
 use ndarray::Array2;
 use crate::detectors::DetectorScores;
 
 pub struct CorrelationEngine {
-    session: Arc<Session>,
+    session: Option<Arc<Session>>,
     feature_count: usize,
 }
 
 impl CorrelationEngine {
     pub async fn new(model_path: &PathBuf) -> Result<Self> {
         debug!("Loading ML model from: {:?}", model_path);
-        
-        // Initialize ONNX Runtime environment
-        let environment = Arc::new(
-            Environment::builder()
-                .with_name("SentinelGuard")
-                .build()
-                .context("Failed to create ONNX Runtime environment")?
-        );
 
         // Load ONNX model
         let session = if model_path.exists() {
-            Session::builder(&environment)?
-                .with_model_from_file(model_path)
+            let session = Session::builder()?
+                .commit_from_file(model_path)
                 .context("Failed to load ONNX model")?
+            ;
+            Some(Arc::new(session))
         } else {
             warn!("ONNX model not found at {:?}, using fallback scoring", model_path);
-            // Return a dummy session - we'll use fallback in infer()
-            return Ok(Self {
-                session: Arc::new(
-                    Session::builder(&environment)?
-                        .commit_from_memory(&[])
-                        .context("Failed to create dummy session")?
-                ),
-                feature_count: 15, // Expected feature count
-            });
+            None
         };
 
         // Get input shape to determine feature count.
         // The model is expected to use the last dimension as the feature count.
         let input_shape = session
-            .inputs
+            .as_ref()
+            .and_then(|s| s.inputs()
             .get(0)
-            .and_then(|input| input.dimensions.last().copied().flatten())
+            .and_then(|input| input.dimensions.last().copied().flatten()))
             .unwrap_or(15_i64) as usize;
 
         debug!("ONNX model loaded, input features: {}", input_shape);
@@ -93,7 +79,7 @@ impl CorrelationEngine {
         features.truncate(self.feature_count);
 
         // Try ONNX inference if model is loaded
-        if self.session.inputs.len() > 0 {
+        if self.session.as_ref().is_some_and(|session| !session.inputs().is_empty()) {
             match self.run_onnx_inference(&features) {
                 Ok(score) => {
                     debug!("ONNX inference score: {:.4}", score);
@@ -127,36 +113,36 @@ impl CorrelationEngine {
 
     fn run_onnx_inference(&self, features: &[f32]) -> Result<f32> {
         use ort::inputs;
-        
+
+        let session = self.session.as_ref()
+            .ok_or_else(|| anyhow::anyhow!("No ONNX session loaded"))?;
+
         // Prepare input tensor as 2D array [1, features.len()]
         let input_array = Array2::from_shape_vec((1, features.len()), features.to_vec())
             .context("Failed to create input array")?;
-        
+
         // Create input value
-        let input_value = inputs!["float_input" => input_array];
+        let input_value = inputs![TensorRef::from_array_view(&input_array)?]?;
 
         // Run inference
-        let outputs = self.session.run(input_value)?;
-        
+        let outputs = session.run(input_value)?;
+
         // Extract output (assuming binary classification, get probability of class 1)
-        let output = outputs["output"]
+        let (_, output) = outputs["output"]
             .try_extract_tensor::<f32>()
             .or_else(|_| {
                 // Try alternative output name
                 outputs.values().next()
-                    .and_then(|v: &Value| v.try_extract_tensor::<f32>().ok())
+                    .and_then(|v| v.try_extract_tensor::<f32>().ok())
                     .ok_or_else(|| anyhow::anyhow!("Failed to extract output tensor"))
             })?;
-        
-        let output_slice = output.view().as_slice()
-            .ok_or_else(|| anyhow::anyhow!("Failed to get output slice"))?;
-        
+
         // If output is shape [1, 2], take the second value (malicious probability)
         // If output is shape [1, 1], use that value directly
-        let score = if output_slice.len() > 1 {
-            output_slice[1] // Probability of malicious class
+        let score = if output.len() > 1 {
+            output[1] // Probability of malicious class
         } else {
-            output_slice[0] // Single output value
+            output[0] // Single output value
         };
 
         Ok(score.clamp(0.0, 1.0))
