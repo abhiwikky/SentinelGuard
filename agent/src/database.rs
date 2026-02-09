@@ -7,7 +7,7 @@ use rusqlite::{Connection, params};
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use tracing::{debug, error};
+use tracing::debug;
 use crate::events::FileEvent;
 use crate::detectors::DetectorScores;
 

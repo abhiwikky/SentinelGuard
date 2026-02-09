@@ -3,14 +3,8 @@
 //
 
 use anyhow::Result;
-use std::sync::Arc;
 use tokio::sync::mpsc;
-use windows::{
-    core::*,
-    Win32::Foundation::*,
-    Win32::System::IO::*,
-};
-use tracing::{debug, error};
+use tracing::debug;
 use crate::events::FileEvent;
 
 pub struct KernelCommunication {

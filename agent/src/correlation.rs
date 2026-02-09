@@ -5,8 +5,11 @@
 use anyhow::{Result, Context};
 use std::path::PathBuf;
 use std::sync::Arc;
-use tracing::{debug, error, warn};
-use ort::{Session, Value, Environment, ExecutionProvider};
+use tracing::{debug, warn};
+use ort::environment::Environment;
+use ort::session::Session;
+use ort::value::Value;
+use ndarray::Array2;
 use crate::detectors::DetectorScores;
 
 pub struct CorrelationEngine {
@@ -22,7 +25,6 @@ impl CorrelationEngine {
         let environment = Arc::new(
             Environment::builder()
                 .with_name("SentinelGuard")
-                .with_execution_providers([ExecutionProvider::CPU(Default::default())])
                 .build()
                 .context("Failed to create ONNX Runtime environment")?
         );
@@ -45,11 +47,13 @@ impl CorrelationEngine {
             });
         };
 
-        // Get input shape to determine feature count
-        let input_shape = session.inputs[0].shape.as_ref()
-            .and_then(|s| s.last())
-            .and_then(|d| d.as_dim_value())
-            .unwrap_or(15);
+        // Get input shape to determine feature count.
+        // The model is expected to use the last dimension as the feature count.
+        let input_shape = session
+            .inputs
+            .get(0)
+            .and_then(|input| input.dimensions.last().copied().flatten())
+            .unwrap_or(15_i64) as usize;
 
         debug!("ONNX model loaded, input features: {}", input_shape);
 
@@ -123,14 +127,13 @@ impl CorrelationEngine {
 
     fn run_onnx_inference(&self, features: &[f32]) -> Result<f32> {
         use ort::inputs;
-        use ort::ndarray::Array2;
         
         // Prepare input tensor as 2D array [1, features.len()]
         let input_array = Array2::from_shape_vec((1, features.len()), features.to_vec())
             .context("Failed to create input array")?;
         
         // Create input value
-        let input_value = inputs!["float_input" => input_array]?;
+        let input_value = inputs!["float_input" => input_array];
 
         // Run inference
         let outputs = self.session.run(input_value)?;
@@ -141,7 +144,7 @@ impl CorrelationEngine {
             .or_else(|_| {
                 // Try alternative output name
                 outputs.values().next()
-                    .and_then(|v| v.try_extract_tensor::<f32>().ok())
+                    .and_then(|v: &Value| v.try_extract_tensor::<f32>().ok())
                     .ok_or_else(|| anyhow::anyhow!("Failed to extract output tensor"))
             })?;
         

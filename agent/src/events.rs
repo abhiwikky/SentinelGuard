@@ -7,7 +7,6 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::mpsc;
 use tracing::{debug, error};
-use chrono::{DateTime, Utc};
 
 use crate::database::Database;
 
@@ -23,7 +22,7 @@ pub struct FileEvent {
     pub entropy_preview: Vec<u8>,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
 pub enum EventType {
     FileCreate,
     FileRead,

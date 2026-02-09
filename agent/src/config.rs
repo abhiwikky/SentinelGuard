@@ -6,9 +6,6 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
-#[cfg(feature = "toml")]
-use toml;
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
     pub database_path: PathBuf,
