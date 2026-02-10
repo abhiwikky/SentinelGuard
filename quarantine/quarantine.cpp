@@ -43,11 +43,17 @@ bool QuarantineModule::SuspendProcess(DWORD processId) {
         return false;
     }
 
+    if (NtSuspendProcess == NULL) {
+        std::wcerr << L"NtSuspendProcess is unavailable" << std::endl;
+        CloseHandle(hProcess);
+        return false;
+    }
+
     // Use NtSuspendProcess via NT API
     NTSTATUS status = NtSuspendProcess(hProcess);
     CloseHandle(hProcess);
 
-    if (status != STATUS_SUCCESS) {
+    if (!NT_SUCCESS(status)) {
         std::wcerr << L"Failed to suspend process " << processId << std::endl;
         return false;
     }
