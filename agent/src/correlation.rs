@@ -8,7 +8,6 @@ use std::sync::Arc;
 use tracing::{debug, warn};
 use ort::session::Session;
 use ort::value::TensorRef;
-use ndarray::Array2;
 use crate::detectors::DetectorScores;
 
 pub struct CorrelationEngine {
@@ -32,19 +31,13 @@ impl CorrelationEngine {
             None
         };
 
-        // Get input shape to determine feature count.
-        // The model is expected to use the last dimension as the feature count.
-        let input_shape = session
-            .as_ref()
-            .and_then(|s| s.inputs()
-            .get(0)
-            .and_then(|input| input.dimensions.last().copied().flatten()))
-            .unwrap_or(15_i64) as usize;
+        // Keep a fixed feature vector size unless model metadata parsing is added.
+        let input_shape = 15usize;
 
         debug!("ONNX model loaded, input features: {}", input_shape);
 
         Ok(Self {
-            session: Arc::new(session),
+            session,
             feature_count: input_shape,
         })
     }
@@ -117,12 +110,9 @@ impl CorrelationEngine {
         let session = self.session.as_ref()
             .ok_or_else(|| anyhow::anyhow!("No ONNX session loaded"))?;
 
-        // Prepare input tensor as 2D array [1, features.len()]
-        let input_array = Array2::from_shape_vec((1, features.len()), features.to_vec())
-            .context("Failed to create input array")?;
-
-        // Create input value
-        let input_value = inputs![TensorRef::from_array_view(&input_array)?]?;
+        // Create input tensor as 2D shape [1, features.len()].
+        // Use shape+slice tuple to avoid ndarray version coupling.
+        let input_value = inputs![TensorRef::from_array_view(([1, features.len()], features))?];
 
         // Run inference
         let outputs = session.run(input_value)?;

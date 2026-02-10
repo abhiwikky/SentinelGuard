@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.15)
+project(SentinelGuardKernel C)
 
 # Find WDK
 find_package(wdk REQUIRED)
