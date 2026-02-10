@@ -38,10 +38,10 @@ const FLT_REGISTRATION FilterRegistration = {
     NULL,
     Callbacks,
     SentinelGuardUnload,
+    SentinelGuardInstanceSetup,
     SentinelGuardInstanceQueryTeardown,
     SentinelGuardInstanceTeardownStart,
     SentinelGuardInstanceTeardownComplete,
-    SentinelGuardInstanceSetup,
     NULL,
     NULL,
     NULL
@@ -148,7 +148,7 @@ FLT_PREOP_CALLBACK_STATUS SentinelGuardPreOperation(
     UNREFERENCED_PARAMETER(CompletionContext);
 
     PFLT_IO_PARAMETER_BLOCK iopb = Data->Iopb;
-    EVENT_TYPE eventType;
+    SG_EVENT_TYPE eventType;
 
     // Determine event type
     switch (iopb->MajorFunction) {

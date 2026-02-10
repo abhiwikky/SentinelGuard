@@ -109,7 +109,7 @@ NTSTATUS PortMessageNotifyCallback(
     _In_ ULONG InputBufferSize,
     _Out_writes_bytes_to_opt_(OutputBufferSize, *ReturnOutputBufferLength) PVOID OutputBuffer,
     _In_ ULONG OutputBufferSize,
-    _Flt_ReturnOutputBufferLength_Out_ PULONG ReturnOutputBufferLength
+    _Out_ PULONG ReturnOutputBufferLength
 )
 {
     UNREFERENCED_PARAMETER(PortCookie);

@@ -24,7 +24,7 @@
 #define MAX_MESSAGE_SIZE 4096
 
 // Event types
-typedef enum _EVENT_TYPE {
+typedef enum _SG_EVENT_TYPE {
     EventFileCreate,
     EventFileRead,
     EventFileWrite,
@@ -34,11 +34,11 @@ typedef enum _EVENT_TYPE {
     EventVSSDelete,
     EventProcessCreate,
     EventRegistryChange
-} EVENT_TYPE;
+} SG_EVENT_TYPE;
 
 // Event structure sent to user-mode
 typedef struct _FILE_EVENT {
-    EVENT_TYPE Type;
+    SG_EVENT_TYPE Type;
     ULONG ProcessId;
     WCHAR ProcessPath[512];
     WCHAR FilePath[1024];
@@ -55,6 +55,8 @@ typedef struct _DRIVER_CONTEXT {
     PFLT_PORT ServerPort;
     PFLT_PORT ClientPort;
 } DRIVER_CONTEXT, *PDRIVER_CONTEXT;
+
+extern DRIVER_CONTEXT g_DriverContext;
 
 // Function declarations
 NTSTATUS DriverEntry(
@@ -110,7 +112,7 @@ NTSTATUS SendEventToUserMode(_In_ PFILE_EVENT Event);
 // Event processing
 VOID ProcessFileEvent(
     _In_ PFLT_CALLBACK_DATA Data,
-    _In_ EVENT_TYPE EventType
+    _In_ SG_EVENT_TYPE EventType
 );
 
 // Utility functions

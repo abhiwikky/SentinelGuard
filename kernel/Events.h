@@ -8,7 +8,7 @@
 
 VOID ProcessFileEvent(
     _In_ PFLT_CALLBACK_DATA Data,
-    _In_ EVENT_TYPE EventType
+    _In_ SG_EVENT_TYPE EventType
 );
 
 NTSTATUS GetProcessPath(

@@ -9,7 +9,7 @@
 
 VOID ProcessFileEvent(
     _In_ PFLT_CALLBACK_DATA Data,
-    _In_ EVENT_TYPE EventType
+    _In_ SG_EVENT_TYPE EventType
 )
 {
     NTSTATUS status;
@@ -122,23 +122,20 @@ UCHAR CalculateEntropy(
 
     ULONG frequency[256] = { 0 };
     ULONG i;
-    double entropy = 0.0;
-    double probability;
+    ULONG distinctValues = 0;
 
     // Count byte frequencies
     for (i = 0; i < Length; i++) {
         frequency[Data[i]]++;
     }
 
-    // Calculate Shannon entropy
+    // Use a simple diversity proxy without CRT math dependencies.
     for (i = 0; i < 256; i++) {
         if (frequency[i] > 0) {
-            probability = (double)frequency[i] / Length;
-            entropy -= probability * log2(probability);
+            distinctValues++;
         }
     }
 
-    // Normalize to 0-255 range (entropy max is 8.0 for bytes)
-    return (UCHAR)((entropy / 8.0) * 255.0);
+    return (UCHAR)min(255, distinctValues);
 }
 
