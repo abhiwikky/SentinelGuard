@@ -109,6 +109,7 @@ target_link_libraries(${DRIVER_NAME} PRIVATE
 target_link_options(${DRIVER_NAME} PRIVATE
     /SUBSYSTEM:NATIVE
     /DRIVER
+    /MANIFEST:NO
     /NODEFAULTLIB
     /ENTRY:DriverEntry
 )
