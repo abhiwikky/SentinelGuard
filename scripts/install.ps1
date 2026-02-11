@@ -3,7 +3,8 @@
 
 param(
     [string]$InstallPath = "C:\Program Files\SentinelGuard",
-    [switch]$SkipDriver = $false
+    [switch]$SkipDriver = $false,
+    [switch]$SkipAgentService = $false
 )
 
 $ErrorActionPreference = "Stop"
@@ -106,27 +107,37 @@ if (-not $SkipDriver) {
     }
 }
 
-# Install agent as Windows service
-Write-Host "Installing agent service..." -ForegroundColor Yellow
 $agentServiceName = "SentinelGuardAgent"
-$existingAgentService = Get-Service -Name $agentServiceName -ErrorAction SilentlyContinue
+if (-not $SkipAgentService) {
+    # Install agent as Windows service
+    Write-Host "Installing agent service..." -ForegroundColor Yellow
+    $existingAgentService = Get-Service -Name $agentServiceName -ErrorAction SilentlyContinue
 
-if ($existingAgentService) {
-    Write-Host "Stopping existing agent service..." -ForegroundColor Yellow
-    Stop-Service -Name $agentServiceName -Force -ErrorAction SilentlyContinue
-    sc.exe delete $agentServiceName | Out-Null
-}
+    if ($existingAgentService) {
+        Write-Host "Stopping existing agent service..." -ForegroundColor Yellow
+        Stop-Service -Name $agentServiceName -Force -ErrorAction SilentlyContinue
+        sc.exe delete $agentServiceName | Out-Null
+    }
 
-Write-Host "Creating agent service..." -ForegroundColor Yellow
-sc.exe create $agentServiceName binPath= "$InstallPath\sentinelguard-agent.exe" start= auto DisplayName= "SentinelGuard Agent"
+    Write-Host "Creating agent service..." -ForegroundColor Yellow
+    sc.exe create $agentServiceName binPath= "$InstallPath\sentinelguard-agent.exe" start= auto DisplayName= "SentinelGuard Agent"
 
-if ($LASTEXITCODE -eq 0) {
-    Write-Host "Agent service created successfully" -ForegroundColor Green
-    Start-Service -Name $agentServiceName
-    Write-Host "Agent service started" -ForegroundColor Green
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "Agent service created successfully" -ForegroundColor Green
+        try {
+            Start-Service -Name $agentServiceName -ErrorAction Stop
+            Write-Host "Agent service started" -ForegroundColor Green
+        } catch {
+            Write-Host "WARNING: Agent service could not be started." -ForegroundColor Red
+            Write-Host "The current agent binary is likely not running as a native Windows service yet." -ForegroundColor Yellow
+            Write-Host "You can run it manually for now: $InstallPath\sentinelguard-agent.exe" -ForegroundColor Yellow
+        }
+    } else {
+        Write-Host "ERROR: Failed to create agent service" -ForegroundColor Red
+        exit 1
+    }
 } else {
-    Write-Host "ERROR: Failed to create agent service" -ForegroundColor Red
-    exit 1
+    Write-Host "Skipping agent service installation (-SkipAgentService)" -ForegroundColor Yellow
 }
 
 # Create ProgramData directory for database
@@ -144,7 +155,9 @@ Set-Acl $programDataPath $acl
 Write-Host ""
 Write-Host "Installation completed successfully!" -ForegroundColor Green
 Write-Host "Installation path: $InstallPath" -ForegroundColor Cyan
-Write-Host "Agent service: $agentServiceName" -ForegroundColor Cyan
+if (-not $SkipAgentService) {
+    Write-Host "Agent service: $agentServiceName" -ForegroundColor Cyan
+}
 Write-Host ""
 Write-Host "Next steps:" -ForegroundColor Yellow
 Write-Host "1. Sign the kernel driver with a valid certificate" -ForegroundColor Yellow

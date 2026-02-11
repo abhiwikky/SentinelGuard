@@ -6,27 +6,27 @@
 use anyhow::Result;
 use std::sync::Arc;
 use tokio::sync::mpsc;
-use tracing::{info, error};
+use tracing::{error, info};
 
-mod config;
-mod events;
-mod detectors;
-mod correlation;
-mod quarantine;
-mod database;
 mod communication;
-mod telemetry;
+mod config;
+mod correlation;
+mod database;
+mod detectors;
+mod events;
 mod grpc_server;
+mod quarantine;
 mod security;
+mod telemetry;
 
-use config::Config;
-use events::EventIngestion;
-use detectors::DetectorManager;
-use correlation::CorrelationEngine;
-use quarantine::QuarantineController;
-use database::Database;
 use communication::KernelCommunication;
+use config::Config;
+use correlation::CorrelationEngine;
+use database::Database;
+use detectors::DetectorManager;
+use events::EventIngestion;
 use grpc_server::start_grpc_server;
+use quarantine::QuarantineController;
 use security::SecurityModule;
 
 #[tokio::main]
@@ -78,11 +78,7 @@ async fn main() -> Result<()> {
     });
 
     // Start event ingestion processor
-    let ingestion = EventIngestion::new(
-        event_rx,
-        detector_tx.clone(),
-        db.clone(),
-    );
+    let ingestion = EventIngestion::new(event_rx, detector_tx.clone(), db.clone());
     tokio::spawn(async move {
         if let Err(e) = ingestion.start().await {
             error!("Event ingestion error: {}", e);
@@ -106,20 +102,20 @@ async fn main() -> Result<()> {
     tokio::spawn(async move {
         loop {
             tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
-            
+
             // Get aggregated scores from detectors
             let scores = detector_manager.get_aggregated_scores().await;
-            
+
             // Run ML correlation
             if let Ok(ml_score) = correlation_engine_final.infer(&scores).await {
                 if ml_score > config_final.quarantine_threshold {
                     info!("Ransomware detected! ML score: {:.2}", ml_score);
-                    
+
                     // Trigger quarantine
                     if let Err(e) = quarantine_final.quarantine_process(scores.process_id).await {
                         error!("Quarantine failed: {}", e);
                     }
-                    
+
                     // Log alert
                     if let Err(e) = db_final.log_alert(&scores, ml_score).await {
                         error!("Failed to log alert: {}", e);
@@ -132,9 +128,11 @@ async fn main() -> Result<()> {
     // Start gRPC server for UI communication
     let db_grpc = db.clone();
     let quarantine_grpc = quarantine.clone();
-    let grpc_addr = config.grpc_listen_addr.parse()
+    let grpc_addr = config
+        .grpc_listen_addr
+        .parse()
         .unwrap_or_else(|_| "127.0.0.1:50051".parse().unwrap());
-    
+
     tokio::spawn(async move {
         if let Err(e) = start_grpc_server(db_grpc, quarantine_grpc, grpc_addr).await {
             error!("gRPC server error: {}", e);
@@ -150,4 +148,3 @@ async fn main() -> Result<()> {
 
     Ok(())
 }
-
