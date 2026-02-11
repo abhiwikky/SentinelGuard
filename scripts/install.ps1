@@ -27,6 +27,12 @@ New-Item -ItemType Directory -Force -Path $InstallPath | Out-Null
 New-Item -ItemType Directory -Force -Path "$InstallPath\logs" | Out-Null
 New-Item -ItemType Directory -Force -Path "$InstallPath\config" | Out-Null
 New-Item -ItemType Directory -Force -Path "$InstallPath\models" | Out-Null
+$UiInstallPath = Join-Path $InstallPath "ui"
+if (Test-Path $UiInstallPath -PathType Leaf) {
+    Write-Host "Removing conflicting UI file at: $UiInstallPath" -ForegroundColor Yellow
+    Remove-Item -Force $UiInstallPath
+}
+New-Item -ItemType Directory -Force -Path $UiInstallPath | Out-Null
 
 $AgentExe = Join-Path $RepoRoot "agent\target\release\sentinelguard-agent.exe"
 $QuarantineExe = Join-Path $RepoRoot "quarantine\build\Release\quarantine.exe"
@@ -61,7 +67,7 @@ Copy-Item $QuarantineExe -Destination "$InstallPath\quarantine.exe" -Force
 
 # Copy UI
 Write-Host "Installing UI..." -ForegroundColor Yellow
-Copy-Item (Join-Path $UiDist "*") -Destination "$InstallPath\ui\" -Recurse -Force
+Copy-Item (Join-Path $UiDist "*") -Destination $UiInstallPath -Recurse -Force
 
 # Copy ML model
 Write-Host "Installing ML model..." -ForegroundColor Yellow
