@@ -4,13 +4,11 @@
 
 use anyhow::Result;
 use std::sync::Arc;
-use tokio::sync::Mutex;
-use tonic::{Request, Response, Status, Streaming};
-use tracing::{debug, error, info};
+use tonic::{Request, Response, Status};
+use tracing::{debug, info};
 use dashmap::DashMap;
 
 use crate::database::Database;
-use crate::detectors::DetectorScores;
 use crate::quarantine::QuarantineController;
 
 // Include generated protobuf code
@@ -18,7 +16,7 @@ pub mod sentinelguard {
     tonic::include_proto!("sentinelguard");
 }
 
-use sentinelguard::sentinelguard_service_server::{SentinelGuardService, SentinelGuardServiceServer};
+use sentinelguard::sentinel_guard_service_server::{SentinelGuardService, SentinelGuardServiceServer};
 use sentinelguard::*;
 
 pub struct SentinelGuardServiceImpl {

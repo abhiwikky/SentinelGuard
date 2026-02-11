@@ -38,7 +38,7 @@ pub struct DetectorManager {
     detectors: Vec<Box<dyn Detector + Send + Sync>>,
 }
 
-struct ProcessStats {
+pub(crate) struct ProcessStats {
     file_writes: usize,
     file_renames: usize,
     file_deletes: usize,
