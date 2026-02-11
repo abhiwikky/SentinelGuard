@@ -5,13 +5,14 @@
 use anyhow::{Result, Context};
 use std::path::PathBuf;
 use std::sync::Arc;
+use tokio::sync::Mutex;
 use tracing::{debug, warn};
 use ort::session::Session;
 use ort::value::TensorRef;
 use crate::detectors::DetectorScores;
 
 pub struct CorrelationEngine {
-    session: Option<Arc<Session>>,
+    session: Option<Arc<Mutex<Session>>>,
     feature_count: usize,
 }
 
@@ -25,7 +26,7 @@ impl CorrelationEngine {
                 .commit_from_file(model_path)
                 .context("Failed to load ONNX model")?
             ;
-            Some(Arc::new(session))
+            Some(Arc::new(Mutex::new(session)))
         } else {
             warn!("ONNX model not found at {:?}, using fallback scoring", model_path);
             None
@@ -72,8 +73,8 @@ impl CorrelationEngine {
         features.truncate(self.feature_count);
 
         // Try ONNX inference if model is loaded
-        if self.session.as_ref().is_some_and(|session| !session.inputs().is_empty()) {
-            match self.run_onnx_inference(&features) {
+        if self.session.is_some() {
+            match self.run_onnx_inference(&features).await {
                 Ok(score) => {
                     debug!("ONNX inference score: {:.4}", score);
                     return Ok(score);
@@ -104,11 +105,12 @@ impl CorrelationEngine {
         Ok(ml_score)
     }
 
-    fn run_onnx_inference(&self, features: &[f32]) -> Result<f32> {
+    async fn run_onnx_inference(&self, features: &[f32]) -> Result<f32> {
         use ort::inputs;
 
         let session = self.session.as_ref()
             .ok_or_else(|| anyhow::anyhow!("No ONNX session loaded"))?;
+        let mut session = session.lock().await;
 
         // Create input tensor as 2D shape [1, features.len()].
         // Use shape+slice tuple to avoid ndarray version coupling.
@@ -117,22 +119,41 @@ impl CorrelationEngine {
         // Run inference
         let outputs = session.run(input_value)?;
 
-        // Extract output (assuming binary classification, get probability of class 1)
-        let (_, output) = outputs["output"]
-            .try_extract_tensor::<f32>()
-            .or_else(|_| {
-                // Try alternative output name
-                outputs.values().next()
-                    .and_then(|v| v.try_extract_tensor::<f32>().ok())
-                    .ok_or_else(|| anyhow::anyhow!("Failed to extract output tensor"))
-            })?;
+        // Extract output as owned data to avoid borrowing from temporary values.
+        let output_values: Vec<f32> = if let Some(value) = outputs.get("output") {
+            if let Ok((_, tensor)) = value.try_extract_tensor::<f32>() {
+                tensor.iter().copied().collect()
+            } else {
+                let mut extracted: Option<Vec<f32>> = None;
+                for candidate in outputs.values() {
+                    if let Ok((_, tensor)) = candidate.try_extract_tensor::<f32>() {
+                        extracted = Some(tensor.iter().copied().collect());
+                        break;
+                    }
+                }
+                extracted.ok_or_else(|| anyhow::anyhow!("Failed to extract output tensor"))?
+            }
+        } else {
+            let mut extracted: Option<Vec<f32>> = None;
+            for candidate in outputs.values() {
+                if let Ok((_, tensor)) = candidate.try_extract_tensor::<f32>() {
+                    extracted = Some(tensor.iter().copied().collect());
+                    break;
+                }
+            }
+            extracted.ok_or_else(|| anyhow::anyhow!("Failed to extract output tensor"))?
+        };
+
+        if output_values.is_empty() {
+            return Err(anyhow::anyhow!("Model output tensor is empty"));
+        }
 
         // If output is shape [1, 2], take the second value (malicious probability)
         // If output is shape [1, 1], use that value directly
-        let score = if output.len() > 1 {
-            output[1] // Probability of malicious class
+        let score = if output_values.len() > 1 {
+            output_values[1] // Probability of malicious class
         } else {
-            output[0] // Single output value
+            output_values[0] // Single output value
         };
 
         Ok(score.clamp(0.0, 1.0))
