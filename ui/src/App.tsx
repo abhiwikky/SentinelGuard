@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { AlertFeed } from './components/AlertFeed';
 import { ProcessRiskOverview } from './components/ProcessRiskOverview';
 import { QuarantinedProcesses } from './components/QuarantinedProcesses';

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { grpcClient, type Alert as RpcAlert } from '../services/grpcClient';
 
 interface Alert {
   id: string;
@@ -9,32 +10,73 @@ interface Alert {
   quarantined: boolean;
 }
 
+function normalizeTimestamp(value: number): Date {
+  if (!Number.isFinite(value)) {
+    return new Date();
+  }
+  const millis = value > 1_000_000_000_000 ? value : value * 1000;
+  return new Date(millis);
+}
+
+function mapAlert(payload: RpcAlert): Alert {
+  return {
+    id: String(payload.id),
+    timestamp: normalizeTimestamp(payload.timestamp),
+    processId: payload.processId,
+    processPath: payload.processPath,
+    mlScore: payload.mlScore,
+    quarantined: payload.quarantined,
+  };
+}
+
 export const AlertFeed: React.FC = () => {
   const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [streamError, setStreamError] = useState<string | null>(null);
 
   useEffect(() => {
-    // TODO: Connect to gRPC API for real-time alerts
-    const interval = setInterval(() => {
-      // Simulated alerts
-      setAlerts(prev => [
-        {
-          id: Math.random().toString(),
-          timestamp: new Date(),
-          processId: Math.floor(Math.random() * 10000),
-          processPath: 'C:\\Users\\Test\\malware.exe',
-          mlScore: 0.85,
-          quarantined: true,
-        },
-        ...prev.slice(0, 49),
-      ]);
-    }, 5000);
+    let unsubscribe = () => {};
+    let mounted = true;
 
-    return () => clearInterval(interval);
+    const start = async () => {
+      try {
+        unsubscribe = grpcClient.onAlert((payload) => {
+          if (!mounted) {
+            return;
+          }
+          if ('__streamError' in payload) {
+            setStreamError(payload.message);
+            return;
+          }
+          setStreamError(null);
+          setAlerts((prev) => [mapAlert(payload), ...prev].slice(0, 50));
+        });
+        await grpcClient.startAlertStream(0);
+      } catch (error) {
+        if (!mounted) {
+          return;
+        }
+        const message = error instanceof Error ? error.message : 'Unable to start alert stream';
+        setStreamError(message);
+      }
+    };
+
+    start();
+
+    return () => {
+      mounted = false;
+      unsubscribe();
+      void grpcClient.stopAlertStream();
+    };
   }, []);
 
   return (
     <div className="bg-white rounded-lg shadow p-6">
       <h2 className="text-2xl font-bold mb-4">Live Alerts</h2>
+      {streamError && (
+        <div className="mb-4 rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+          Stream error: {streamError}
+        </div>
+      )}
       <div className="space-y-4">
         {alerts.map(alert => (
           <div

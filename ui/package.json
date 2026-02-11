@@ -2,19 +2,19 @@
   "name": "sentinelguard-ui",
   "version": "1.0.0",
   "description": "SentinelGuard Dashboard UI",
-  "main": "dist/main.js",
+  "main": "electron/main.js",
   "scripts": {
     "dev": "electron .",
-    "build": "tsc && electron-builder",
-    "build:react": "vite build",
+    "build": "npm run build:react && electron-builder",
+    "build:react": "tsc && vite build",
     "dev:react": "vite"
   },
   "dependencies": {
+    "@grpc/grpc-js": "^1.14.0",
+    "@grpc/proto-loader": "^0.8.0",
     "electron": "^27.0.0",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "@grpc/grpc-js": "^1.9.0",
-    "@protobufjs/grpcweb": "^1.4.0"
+    "react-dom": "^18.2.0"
   },
   "devDependencies": {
     "@types/react": "^18.2.0",
