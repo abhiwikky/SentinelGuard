@@ -11,6 +11,9 @@ $ErrorActionPreference = "Stop"
 Write-Host "SentinelGuard Installation Script" -ForegroundColor Green
 Write-Host "=================================" -ForegroundColor Green
 
+$ScriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
+$RepoRoot = Split-Path -Parent $ScriptRoot
+
 # Check for administrator privileges
 $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 if (-not $isAdmin) {
@@ -25,31 +28,57 @@ New-Item -ItemType Directory -Force -Path "$InstallPath\logs" | Out-Null
 New-Item -ItemType Directory -Force -Path "$InstallPath\config" | Out-Null
 New-Item -ItemType Directory -Force -Path "$InstallPath\models" | Out-Null
 
+$AgentExe = Join-Path $RepoRoot "agent\target\release\sentinelguard-agent.exe"
+$QuarantineExe = Join-Path $RepoRoot "quarantine\build\Release\quarantine.exe"
+$UiDist = Join-Path $RepoRoot "ui\dist"
+$ModelGlob = Join-Path $RepoRoot "ml\models\*.onnx"
+$ConfigToml = Join-Path $RepoRoot "agent\config\config.toml"
+$DriverSys = Join-Path $RepoRoot "kernel\build\Release\SentinelGuard.sys"
+
+if (-not (Test-Path $AgentExe)) {
+    throw "Missing agent binary: $AgentExe. Build it with: cd agent; cargo build --release"
+}
+if (-not (Test-Path $QuarantineExe)) {
+    throw "Missing quarantine binary: $QuarantineExe. Build it from quarantine\build (Release)."
+}
+if (-not (Test-Path $UiDist)) {
+    throw "Missing UI dist folder: $UiDist. Build it with: cd ui; npm run build"
+}
+if (-not (Get-ChildItem -Path $ModelGlob -ErrorAction SilentlyContinue)) {
+    throw "Missing ONNX model(s) at: $ModelGlob. Generate/copy model files before install."
+}
+if (-not (Test-Path $ConfigToml)) {
+    throw "Missing config file: $ConfigToml"
+}
+
 # Copy agent executable
 Write-Host "Installing agent..." -ForegroundColor Yellow
-Copy-Item "agent\target\release\sentinelguard-agent.exe" -Destination "$InstallPath\sentinelguard-agent.exe" -Force
+Copy-Item $AgentExe -Destination "$InstallPath\sentinelguard-agent.exe" -Force
 
 # Copy quarantine module
 Write-Host "Installing quarantine module..." -ForegroundColor Yellow
-Copy-Item "quarantine\build\Release\quarantine.exe" -Destination "$InstallPath\quarantine.exe" -Force
+Copy-Item $QuarantineExe -Destination "$InstallPath\quarantine.exe" -Force
 
 # Copy UI
 Write-Host "Installing UI..." -ForegroundColor Yellow
-Copy-Item "ui\dist\*" -Destination "$InstallPath\ui\" -Recurse -Force
+Copy-Item (Join-Path $UiDist "*") -Destination "$InstallPath\ui\" -Recurse -Force
 
 # Copy ML model
 Write-Host "Installing ML model..." -ForegroundColor Yellow
-Copy-Item "ml\models\*.onnx" -Destination "$InstallPath\models\" -Force
+Copy-Item $ModelGlob -Destination "$InstallPath\models\" -Force
 
 # Copy configuration
 Write-Host "Installing configuration..." -ForegroundColor Yellow
-Copy-Item "agent\config\config.toml" -Destination "$InstallPath\config\config.toml" -Force
+Copy-Item $ConfigToml -Destination "$InstallPath\config\config.toml" -Force
 
 # Install kernel driver
 if (-not $SkipDriver) {
+    if (-not (Test-Path $DriverSys)) {
+        throw "Missing kernel driver binary: $DriverSys. Build it from kernel\build (Release), or rerun with -SkipDriver."
+    }
     Write-Host "Installing kernel driver..." -ForegroundColor Yellow
     $driverPath = "$InstallPath\SentinelGuard.sys"
-    Copy-Item "kernel\build\Release\SentinelGuard.sys" -Destination $driverPath -Force
+    Copy-Item $DriverSys -Destination $driverPath -Force
     
     # Install driver service
     $serviceName = "SentinelGuard"
