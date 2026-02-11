@@ -71,7 +71,7 @@ impl DetectorManager {
         })
     }
 
-    pub async fn process_events(self, mut event_rx: mpsc::UnboundedReceiver<FileEvent>) -> Result<()> {
+    pub async fn process_events(&self, mut event_rx: mpsc::UnboundedReceiver<FileEvent>) -> Result<()> {
         while let Some(event) = event_rx.recv().await {
             self.update_process_stats(&event);
             
