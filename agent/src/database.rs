@@ -142,5 +142,36 @@ impl Database {
 
         Ok(())
     }
+
+    pub async fn get_system_metrics(&self) -> Result<(i64, i64, i32, i32)> {
+        let conn = self.conn.lock().await;
+        let now = chrono::Utc::now().timestamp();
+
+        let total_events: i64 = conn.query_row(
+            "SELECT COUNT(*) FROM events",
+            [],
+            |row| row.get(0),
+        )?;
+
+        let events_last_5s: i64 = conn.query_row(
+            "SELECT COUNT(*) FROM events WHERE timestamp >= ?1",
+            params![now - 5],
+            |row| row.get(0),
+        )?;
+
+        let active_processes: i32 = conn.query_row(
+            "SELECT COUNT(DISTINCT process_id) FROM events WHERE timestamp >= ?1",
+            params![now - 60],
+            |row| row.get(0),
+        )?;
+
+        let quarantined_count: i32 = conn.query_row(
+            "SELECT COUNT(*) FROM alerts WHERE quarantined = 1",
+            [],
+            |row| row.get(0),
+        )?;
+
+        Ok((total_events, events_last_5s, active_processes, quarantined_count))
+    }
 }
 

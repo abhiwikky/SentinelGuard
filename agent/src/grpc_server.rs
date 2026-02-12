@@ -93,14 +93,24 @@ impl SentinelGuardService for SentinelGuardServiceImpl {
         &self,
         _request: Request<GetSystemHealthRequest>,
     ) -> Result<Response<SystemHealth>, Status> {
-        // TODO: Collect real system metrics
+        let (total_events, events_last_5s, active_processes, quarantined_count) = self.db
+            .get_system_metrics()
+            .await
+            .map_err(|e| Status::internal(format!("Failed to query system metrics: {}", e)))?;
+
+        let eps = if events_last_5s <= 0 {
+            0
+        } else {
+            ((events_last_5s as f64) / 5.0).round() as i64
+        };
+
         let health = SystemHealth {
             agent_running: true,
             driver_loaded: true,
-            events_per_second: 0,
-            total_events: 0,
-            active_processes: 0,
-            quarantined_count: 0,
+            events_per_second: eps,
+            total_events,
+            active_processes,
+            quarantined_count,
             cpu_usage: 0.0,
             memory_usage: 0.0,
         };
