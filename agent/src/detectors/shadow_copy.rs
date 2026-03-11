@@ -8,13 +8,13 @@ use crate::detectors::{Detector, ProcessStats};
 use crate::events::FileEvent;
 
 pub struct ShadowCopyDetector {
-    config: DetectorConfig,
+    _config: DetectorConfig,
 }
 
 impl ShadowCopyDetector {
     pub fn new(config: &DetectorConfig) -> Result<Self> {
         Ok(Self {
-            config: config.clone(),
+            _config: config.clone(),
         })
     }
 }

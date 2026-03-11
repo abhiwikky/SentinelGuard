@@ -11,8 +11,8 @@ use tracing::{debug, warn, error};
 use ring::digest;
 
 pub struct SecurityModule {
-    agent_hash: Vec<u8>,
-    config_hash: Arc<Mutex<Vec<u8>>>,
+    _agent_hash: Vec<u8>,
+    _config_hash: Arc<Mutex<Vec<u8>>>,
 }
 
 impl SecurityModule {
@@ -24,16 +24,17 @@ impl SecurityModule {
         debug!("Agent binary hash calculated: {:x?}", agent_hash);
 
         Ok(Self {
-            agent_hash,
-            config_hash: Arc::new(Mutex::new(Vec::new())),
+            _agent_hash: agent_hash,
+            _config_hash: Arc::new(Mutex::new(Vec::new())),
         })
     }
 
+    #[allow(dead_code)]
     pub async fn verify_agent_integrity(&self) -> Result<bool> {
         let current_path = std::env::current_exe()?;
         let current_hash = Self::calculate_file_hash(&current_path)?;
         
-        if current_hash != self.agent_hash {
+        if current_hash != self._agent_hash {
             error!("Agent binary integrity check failed - possible tampering!");
             return Ok(false);
         }
@@ -42,9 +43,10 @@ impl SecurityModule {
         Ok(true)
     }
 
+    #[allow(dead_code)]
     pub async fn verify_config_integrity(&self, config_path: &PathBuf) -> Result<bool> {
         let current_hash = Self::calculate_file_hash(config_path)?;
-        let mut stored_hash = self.config_hash.lock().await;
+        let mut stored_hash = self._config_hash.lock().await;
         
         if stored_hash.is_empty() {
             // First run - store hash
@@ -95,9 +97,10 @@ impl SecurityModule {
         Ok(hash.as_ref().to_vec())
     }
 
+    #[allow(dead_code)]
     pub fn verify_driver_integrity(&self, driver_path: &PathBuf) -> Result<bool> {
         // Verify kernel driver signature and integrity
-        let hash = Self::calculate_file_hash(driver_path)?;
+        let _hash = Self::calculate_file_hash(driver_path)?;
         
         // In production, would also verify code signature
         debug!("Driver integrity check completed");

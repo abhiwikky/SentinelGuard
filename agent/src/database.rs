@@ -12,7 +12,7 @@ use crate::events::FileEvent;
 use crate::detectors::DetectorScores;
 
 pub struct Database {
-    path: PathBuf,
+    _path: PathBuf,
     conn: Arc<Mutex<Connection>>,
 }
 
@@ -25,7 +25,7 @@ impl Database {
 
         let conn = Connection::open(path)?;
         let db = Self {
-            path: path.clone(),
+            _path: path.clone(),
             conn: Arc::new(Mutex::new(conn)),
         };
 

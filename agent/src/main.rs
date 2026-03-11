@@ -87,7 +87,6 @@ async fn main() -> Result<()> {
 
     // Start detector manager
     let detector_manager_clone = detector_manager.clone();
-    let correlation_engine_clone = correlation_engine.clone();
     tokio::spawn(async move {
         if let Err(e) = detector_manager_clone.process_events(detector_rx).await {
             error!("Detector manager error: {}", e);

@@ -15,6 +15,7 @@ use std::sync::Arc;
 use tokio::sync::mpsc;
 use dashmap::DashMap;
 use serde::{Deserialize, Serialize};
+use tracing::debug;
 
 use crate::config::Config;
 use crate::events::FileEvent;
@@ -33,7 +34,6 @@ pub struct DetectorScores {
 }
 
 pub struct DetectorManager {
-    config: Arc<Config>,
     process_stats: Arc<DashMap<u32, ProcessStats>>,
     detectors: Vec<Box<dyn Detector + Send + Sync>>,
 }
@@ -47,7 +47,7 @@ pub(crate) struct ProcessStats {
     last_update: i64,
 }
 
-pub trait Detector: Send + Sync {
+pub(crate) trait Detector: Send + Sync {
     fn name(&self) -> &str;
     fn analyze(&self, event: &FileEvent, stats: &ProcessStats) -> f32;
 }
@@ -65,7 +65,6 @@ impl DetectorManager {
         detectors.push(Box::new(file_extension::FileExtensionDetector::new(&config.detector_config)?));
 
         Ok(Self {
-            config,
             process_stats: Arc::new(DashMap::new()),
             detectors,
         })
@@ -78,7 +77,15 @@ impl DetectorManager {
             // Run all detectors
             if let Some(stats) = self.process_stats.get(&event.process_id) {
                 for detector in &self.detectors {
-                    let _score = detector.analyze(&event, &stats);
+                    let score = detector.analyze(&event, &stats);
+                    if score > 0.0 {
+                        debug!(
+                            detector = detector.name(),
+                            process_id = event.process_id,
+                            score,
+                            "detector produced a non-zero score"
+                        );
+                    }
                 }
             }
         }

@@ -8,13 +8,13 @@ use tracing::debug;
 use crate::events::FileEvent;
 
 pub struct KernelCommunication {
-    event_tx: mpsc::UnboundedSender<FileEvent>,
+    _event_tx: mpsc::UnboundedSender<FileEvent>,
 }
 
 impl KernelCommunication {
     pub fn new(event_tx: mpsc::UnboundedSender<FileEvent>) -> Result<Self> {
         Ok(Self {
-            event_tx,
+            _event_tx: event_tx,
         })
     }
 

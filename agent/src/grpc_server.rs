@@ -80,9 +80,8 @@ impl SentinelGuardService for SentinelGuardServiceImpl {
 
     async fn get_detector_logs(
         &self,
-        request: Request<GetDetectorLogsRequest>,
+        _request: Request<GetDetectorLogsRequest>,
     ) -> Result<Response<DetectorLogsResponse>, Status> {
-        let req = request.into_inner();
         // TODO: Query detector logs from database
         let entries = vec![];
         
@@ -166,10 +165,12 @@ impl SentinelGuardServiceImpl {
         }
     }
 
+    #[allow(dead_code)]
     pub fn add_alert(&self, alert: Alert) {
         self.alerts.insert(alert.id, alert);
     }
 
+    #[allow(dead_code)]
     pub fn update_process_risk(&self, process_id: u32, risk: ProcessRisk) {
         self.process_risks.insert(process_id, risk);
     }

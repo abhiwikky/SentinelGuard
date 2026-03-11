@@ -5,10 +5,12 @@
 use anyhow::Result;
 use tracing::info;
 
+#[allow(dead_code)]
 pub struct TelemetryLogger {
     // Telemetry configuration
 }
 
+#[allow(dead_code)]
 impl TelemetryLogger {
     pub fn new() -> Self {
         Self {}

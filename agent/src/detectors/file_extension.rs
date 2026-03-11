@@ -3,21 +3,18 @@
 //
 
 use anyhow::Result;
-use std::collections::HashMap;
 use crate::config::DetectorConfig;
 use crate::detectors::{Detector, ProcessStats};
 use crate::events::FileEvent;
 
 pub struct FileExtensionDetector {
-    config: DetectorConfig,
-    extension_counts: HashMap<u32, HashMap<String, usize>>,
+    _config: DetectorConfig,
 }
 
 impl FileExtensionDetector {
     pub fn new(config: &DetectorConfig) -> Result<Self> {
         Ok(Self {
-            config: config.clone(),
-            extension_counts: HashMap::new(),
+            _config: config.clone(),
         })
     }
 
