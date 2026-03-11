@@ -75,12 +75,12 @@ Artifacts:
 - `ml\models\random_forest.joblib`
 - `ml\models\scaler.joblib`
 
-### UI renderer
+### Browser UI
 
 ```powershell
 cd ui
 npm install
-npm run build:react
+npm run build:web
 cd ..
 ```
 
@@ -88,17 +88,20 @@ Artifact:
 
 - `ui\dist\`
 
-Optional Electron packaging:
+Local launch:
 
 ```powershell
 cd ui
-npm run build
+npm run web
 cd ..
 ```
 
+Then open `http://localhost:4173`.
+
 Note:
 
-- `scripts/install.ps1` expects `ui\dist`, not the packaged Electron output.
+- The UI is browser-only and runs separately from the agent process.
+- `scripts/install.ps1` installs the browser UI path served by `ui\server.js`.
 
 ## Install
 
@@ -113,7 +116,12 @@ The installer copies:
 - agent executable
 - quarantine helper
 - kernel driver
-- renderer bundle from `ui\dist`
+- browser bundle from `ui\dist`
+- `ui\server.js`
+- `ui\start-web.ps1`
+- `ui\package.json`
+- `ui\node_modules`
+- `agent\proto\sentinelguard.proto`
 - ONNX model from `ml\models`
 - `agent\config\config.toml`
 
@@ -123,6 +131,14 @@ It also creates:
 - `C:\ProgramData\SentinelGuard`
 - `SentinelGuard` kernel service
 - `SentinelGuardAgent` service unless `-SkipAgentService` is used
+
+Launch the installed browser UI:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File "C:\Program Files\SentinelGuard\ui\start-web.ps1"
+```
+
+Then open `http://localhost:4173`.
 
 ## Signing
 
@@ -141,6 +157,8 @@ Test-Path agent\target\release\sentinelguard-agent.exe
 Test-Path kernel\build\Release\SentinelGuard.sys
 Test-Path quarantine\build\Release\quarantine.exe
 Test-Path ui\dist
+Test-Path ui\server.js
+Test-Path ui\node_modules
 Get-ChildItem ml\models\*.onnx
 ```
 
@@ -155,5 +173,5 @@ sc.exe query SentinelGuardAgent
 
 - The agent currently uses built-in defaults from `agent/src/config.rs`; installed TOML values are not parsed yet.
 - The agent binary is not implemented as a full Windows service yet, so service startup can fail.
-- The installed UI is only the renderer bundle, not a packaged Electron desktop application.
+- The browser UI can verify bridge reachability and agent-reported health, but several data panels are still backed by placeholder gRPC responses.
 - Several gRPC and dashboard features are still placeholders.

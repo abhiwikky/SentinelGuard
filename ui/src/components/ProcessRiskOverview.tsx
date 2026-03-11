@@ -1,39 +1,10 @@
 import React from 'react';
-import { useEffect, useState } from 'react';
-import { grpcClient, type ProcessRisk } from '../services/grpcClient';
+import { useDashboardData, useProcessRiskData } from '../context/DashboardDataContext';
 
 export const ProcessRiskOverview: React.FC = () => {
-  const [processes, setProcesses] = useState<ProcessRisk[]>([]);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let mounted = true;
-    const refresh = async () => {
-      try {
-        const response = await grpcClient.getProcessRiskOverview(50);
-        if (!mounted) {
-          return;
-        }
-        setError(null);
-        setProcesses(response.processes || []);
-      } catch (err) {
-        if (!mounted) {
-          return;
-        }
-        setError(err instanceof Error ? err.message : 'Unable to fetch process risks');
-      }
-    };
-
-    void refresh();
-    const interval = setInterval(() => {
-      void refresh();
-    }, 3000);
-
-    return () => {
-      mounted = false;
-      clearInterval(interval);
-    };
-  }, []);
+  const processes = useProcessRiskData().processes || [];
+  const { snapshot } = useDashboardData();
+  const error = snapshot?.errors.processRiskOverview || null;
 
   return (
     <div className="bg-white rounded-lg shadow p-6">

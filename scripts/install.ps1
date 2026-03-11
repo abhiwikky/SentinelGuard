@@ -38,6 +38,11 @@ New-Item -ItemType Directory -Force -Path $UiInstallPath | Out-Null
 $AgentExe = Join-Path $RepoRoot "agent\target\release\sentinelguard-agent.exe"
 $QuarantineExe = Join-Path $RepoRoot "quarantine\build\Release\quarantine.exe"
 $UiDist = Join-Path $RepoRoot "ui\dist"
+$UiServer = Join-Path $RepoRoot "ui\server.js"
+$UiStartScript = Join-Path $RepoRoot "ui\start-web.ps1"
+$UiPackageJson = Join-Path $RepoRoot "ui\package.json"
+$UiNodeModules = Join-Path $RepoRoot "ui\node_modules"
+$UiProtoSource = Join-Path $RepoRoot "agent\proto\sentinelguard.proto"
 $ModelGlob = Join-Path $RepoRoot "ml\models\*.onnx"
 $ConfigToml = Join-Path $RepoRoot "agent\config\config.toml"
 $DriverSys = Join-Path $RepoRoot "kernel\build\Release\SentinelGuard.sys"
@@ -49,7 +54,22 @@ if (-not (Test-Path $QuarantineExe)) {
     throw "Missing quarantine binary: $QuarantineExe. Build it from quarantine\build (Release)."
 }
 if (-not (Test-Path $UiDist)) {
-    throw "Missing UI dist folder: $UiDist. Build it with: cd ui; npm run build"
+    throw "Missing UI dist folder: $UiDist. Build it with: cd ui; npm run build:web"
+}
+if (-not (Test-Path $UiServer)) {
+    throw "Missing UI web bridge: $UiServer"
+}
+if (-not (Test-Path $UiStartScript)) {
+    throw "Missing UI start script: $UiStartScript"
+}
+if (-not (Test-Path $UiPackageJson)) {
+    throw "Missing UI package.json: $UiPackageJson"
+}
+if (-not (Test-Path $UiNodeModules)) {
+    throw "Missing UI node_modules: $UiNodeModules. Install UI dependencies with: cd ui; npm install"
+}
+if (-not (Test-Path $UiProtoSource)) {
+    throw "Missing UI proto source: $UiProtoSource"
 }
 if (-not (Get-ChildItem -Path $ModelGlob -ErrorAction SilentlyContinue)) {
     throw "Missing ONNX model(s) at: $ModelGlob. Generate/copy model files before install."
@@ -67,8 +87,15 @@ Write-Host "Installing quarantine module..." -ForegroundColor Yellow
 Copy-Item $QuarantineExe -Destination "$InstallPath\quarantine.exe" -Force
 
 # Copy UI
-Write-Host "Installing UI..." -ForegroundColor Yellow
+Write-Host "Installing browser UI..." -ForegroundColor Yellow
 Copy-Item (Join-Path $UiDist "*") -Destination $UiInstallPath -Recurse -Force
+Copy-Item $UiServer -Destination (Join-Path $UiInstallPath "server.js") -Force
+Copy-Item $UiStartScript -Destination (Join-Path $UiInstallPath "start-web.ps1") -Force
+Copy-Item $UiPackageJson -Destination (Join-Path $UiInstallPath "package.json") -Force
+Copy-Item $UiNodeModules -Destination (Join-Path $UiInstallPath "node_modules") -Recurse -Force
+$UiProtoInstallPath = Join-Path $UiInstallPath "proto"
+New-Item -ItemType Directory -Force -Path $UiProtoInstallPath | Out-Null
+Copy-Item $UiProtoSource -Destination (Join-Path $UiProtoInstallPath "sentinelguard.proto") -Force
 
 # Copy ML model
 Write-Host "Installing ML model..." -ForegroundColor Yellow
@@ -163,5 +190,6 @@ Write-Host "Next steps:" -ForegroundColor Yellow
 Write-Host "1. Sign the kernel driver with a valid certificate" -ForegroundColor Yellow
 Write-Host "2. Start the driver service: sc start SentinelGuard" -ForegroundColor Yellow
 Write-Host "3. Configure settings in: $InstallPath\config\config.toml" -ForegroundColor Yellow
-Write-Host "4. Launch the UI from: $InstallPath\ui\" -ForegroundColor Yellow
+Write-Host "4. Launch the browser UI: powershell -ExecutionPolicy Bypass -File `"$InstallPath\ui\start-web.ps1`"" -ForegroundColor Yellow
+Write-Host "5. Open http://localhost:4173 in your browser" -ForegroundColor Yellow
 

@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { grpcClient, type Alert as RpcAlert } from '../services/grpcClient';
+import React from 'react';
+import { useDashboardData } from '../context/DashboardDataContext';
+import type { Alert as RpcAlert } from '../services/grpcClient';
 
 interface Alert {
   id: string;
@@ -30,44 +31,8 @@ function mapAlert(payload: RpcAlert): Alert {
 }
 
 export const AlertFeed: React.FC = () => {
-  const [alerts, setAlerts] = useState<Alert[]>([]);
-  const [streamError, setStreamError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let unsubscribe = () => {};
-    let mounted = true;
-
-    const start = async () => {
-      try {
-        unsubscribe = grpcClient.onAlert((payload) => {
-          if (!mounted) {
-            return;
-          }
-          if ('__streamError' in payload) {
-            setStreamError(payload.message);
-            return;
-          }
-          setStreamError(null);
-          setAlerts((prev) => [mapAlert(payload), ...prev].slice(0, 50));
-        });
-        await grpcClient.startAlertStream(0);
-      } catch (error) {
-        if (!mounted) {
-          return;
-        }
-        const message = error instanceof Error ? error.message : 'Unable to start alert stream';
-        setStreamError(message);
-      }
-    };
-
-    start();
-
-    return () => {
-      mounted = false;
-      unsubscribe();
-      void grpcClient.stopAlertStream();
-    };
-  }, []);
+  const { alerts: rawAlerts, streamError } = useDashboardData();
+  const alerts = rawAlerts.map(mapAlert);
 
   return (
     <div className="bg-white rounded-lg shadow p-6">

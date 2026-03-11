@@ -1,46 +1,10 @@
 import React from 'react';
-import { useEffect, useRef, useState } from 'react';
-import { grpcClient, type DetectorLogEntry } from '../services/grpcClient';
+import { useDashboardData, useDetectorLogsData } from '../context/DashboardDataContext';
 
 export const DetectorLogs: React.FC = () => {
-  const [entries, setEntries] = useState<DetectorLogEntry[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const latestTimestampRef = useRef(0);
-
-  useEffect(() => {
-    let mounted = true;
-
-    const refresh = async () => {
-      const since = latestTimestampRef.current;
-      try {
-        const response = await grpcClient.getDetectorLogs(since, 100);
-        if (!mounted) {
-          return;
-        }
-        setError(null);
-        const nextEntries = response.entries || [];
-        if (nextEntries.length > 0) {
-          latestTimestampRef.current = nextEntries[0].timestamp;
-        }
-        setEntries(nextEntries);
-      } catch (err) {
-        if (!mounted) {
-          return;
-        }
-        setError(err instanceof Error ? err.message : 'Unable to fetch detector logs');
-      }
-    };
-
-    void refresh();
-    const interval = setInterval(() => {
-      void refresh();
-    }, 4000);
-
-    return () => {
-      mounted = false;
-      clearInterval(interval);
-    };
-  }, []);
+  const entries = useDetectorLogsData().entries || [];
+  const { snapshot } = useDashboardData();
+  const error = snapshot?.errors.detectorLogs || null;
 
   return (
     <div className="bg-white rounded-lg shadow p-6">

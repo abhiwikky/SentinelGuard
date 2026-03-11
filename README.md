@@ -1,6 +1,6 @@
 # SentinelGuard
 
-Real-time ransomware detection and intervention for Windows. The repository contains a kernel minifilter driver, a Rust user-mode agent, an ML training pipeline, a quarantine helper, and an Electron/React dashboard.
+Real-time ransomware detection and intervention for Windows. The repository contains a kernel minifilter driver, a Rust user-mode agent, an ML training pipeline, a quarantine helper, and a browser-first React dashboard with a local gRPC web bridge.
 
 ## Repository Layout
 
@@ -8,7 +8,7 @@ Real-time ransomware detection and intervention for Windows. The repository cont
 - `agent/`: Rust agent with detector pipeline, SQLite logging, and gRPC server
 - `quarantine/`: native helper executable used to suspend or release processes
 - `ml/`: Python training pipeline that exports an ONNX model
-- `ui/`: Electron shell plus React renderer
+- `ui/`: browser UI and local Node.js gRPC bridge
 - `scripts/`: install, uninstall, and signing scripts
 - `tests/`: end-to-end simulator scripts
 
@@ -19,9 +19,12 @@ The old README had drifted from the codebase. These points reflect the repositor
 - The top-level docs had encoding corruption; this file is now ASCII-only.
 - The kernel and quarantine components are C/C++ projects built with CMake. The kernel build prefers a WDK CMake package and falls back to `WDK_ROOT`.
 - The ML training script currently writes `ml/models/sentinelguard_model.onnx`.
-- The installer copies `ui/dist`, which is the Vite renderer bundle. It does not currently package a complete Electron desktop app on its own.
+- The UI is browser-only and runs as a separate process from the agent.
+- The installer copies the browser UI bundle, local bridge, proto file, and UI dependencies so the dashboard is launchable after install.
 - `agent/src/config.rs` currently returns built-in defaults; `agent/config/config.toml` is installed, but the agent does not parse it yet.
-- Some gRPC and UI features are still placeholders; see `PROJECT_STATUS.md` for gaps.
+- The dashboard uses one shared snapshot refresh loop plus alert streaming, which reduces redundant polling across tabs.
+- The dashboard can verify bridge and gRPC reachability in addition to agent-reported health data.
+- Some gRPC-backed UI panels are still placeholders; see `PROJECT_STATUS.md` for gaps.
 
 ## Prerequisites
 
@@ -116,13 +119,13 @@ npm install
 cd ..
 ```
 
-### 6. Build the UI renderer
+### 6. Build the browser UI
 
-If you want the files expected by `scripts\install.ps1`, build the React renderer bundle:
+Build the React bundle that the local web bridge serves:
 
 ```powershell
 cd ui
-npm run build:react
+npm run build:web
 cd ..
 ```
 
@@ -130,20 +133,28 @@ Expected artifact:
 
 - `ui\dist\`
 
-### 7. Optionally package the Electron app
+### 7. Launch the browser UI locally
 
-If you want Electron packaging as defined in `ui/package.json`, run:
+Start the local Node.js bridge and open the dashboard in a browser:
 
 ```powershell
 cd ui
-npm run build
+npm run web
 cd ..
 ```
 
-Important:
+Then open:
 
-- `npm run build` runs both `vite build` and `electron-builder`.
-- The current install script does not consume packaged Electron output; it copies only `ui\dist`.
+```text
+http://localhost:4173
+```
+
+What this does:
+
+- serves the built React app from `ui\dist`
+- proxies browser requests to the agent gRPC server at `127.0.0.1:50051` by default
+- keeps the UI isolated from SentinelGuard itself, so a browser crash does not affect the agent process
+- exposes component health checks so the UI can show bridge status, gRPC reachability, agent status, and driver status
 
 ## One-Pass Build Order
 
@@ -153,7 +164,7 @@ If you want the entire repository built in the order required by the current scr
 2. `kernel`: `cmake -S . -B build ...` then `cmake --build build --config Release`
 3. `quarantine`: `cmake -S . -B build ...` then `cmake --build build --config Release`
 4. `ml`: `pip install -r requirements.txt` then `python train_model.py`
-5. `ui`: `npm install` then `npm run build:react`
+5. `ui`: `npm install` then `npm run build:web`
 
 That sequence produces all artifacts consumed by `scripts\install.ps1`.
 
@@ -171,22 +182,39 @@ The installer currently expects these inputs:
 - `kernel\build\Release\SentinelGuard.sys`
 - `quarantine\build\Release\quarantine.exe`
 - `ui\dist\`
+- `ui\server.js`
+- `ui\start-web.ps1`
+- `ui\package.json`
+- `ui\node_modules\`
+- `agent\proto\sentinelguard.proto`
 - `ml\models\*.onnx`
 - `agent\config\config.toml`
 
 What it does:
 
 - creates `C:\Program Files\SentinelGuard`
-- copies the agent, driver, quarantine helper, UI renderer assets, config, and ONNX model
+- copies the agent, driver, quarantine helper, browser UI bundle, browser bridge, UI dependencies, config, proto, and ONNX model
 - creates the `SentinelGuard` kernel service unless `-SkipDriver` is used
 - creates the `SentinelGuardAgent` service unless `-SkipAgentService` is used
 - creates `C:\ProgramData\SentinelGuard`
+
+After install, launch the UI with:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File "C:\Program Files\SentinelGuard\ui\start-web.ps1"
+```
+
+Then open:
+
+```text
+http://localhost:4173
+```
 
 Current limitations:
 
 - The driver must be signed before Windows will load it outside test scenarios.
 - The agent executable is not implemented as a native Windows service yet; the installer already warns that service start may fail.
-- The installed UI path is not a fully packaged Electron app.
+- The browser UI can verify bridge reachability and agent-reported health, but some data panels are still backed by placeholder gRPC responses.
 
 ## Signing
 

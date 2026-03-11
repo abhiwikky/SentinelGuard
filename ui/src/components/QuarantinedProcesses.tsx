@@ -1,46 +1,19 @@
 import React from 'react';
-import { useEffect, useState } from 'react';
-import { grpcClient, type QuarantinedProcess } from '../services/grpcClient';
+import { useState } from 'react';
+import { useDashboardData, useQuarantinedProcessesData } from '../context/DashboardDataContext';
+import { grpcClient } from '../services/grpcClient';
 
 export const QuarantinedProcesses: React.FC = () => {
-  const [processes, setProcesses] = useState<QuarantinedProcess[]>([]);
-  const [error, setError] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
-
-  const refresh = async () => {
-    try {
-      const response = await grpcClient.getQuarantinedProcesses();
-      setError(null);
-      setProcesses(response.processes || []);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to fetch quarantined processes');
-    }
-  };
-
-  useEffect(() => {
-    let mounted = true;
-    const guardedRefresh = async () => {
-      if (!mounted) {
-        return;
-      }
-      await refresh();
-    };
-    void guardedRefresh();
-    const interval = setInterval(() => {
-      void guardedRefresh();
-    }, 5000);
-
-    return () => {
-      mounted = false;
-      clearInterval(interval);
-    };
-  }, []);
+  const processes = useQuarantinedProcessesData().processes || [];
+  const { snapshot, refreshSnapshot } = useDashboardData();
+  const error = snapshot?.errors.quarantinedProcesses || null;
 
   const handleRelease = async (processId: number) => {
     try {
       const response = await grpcClient.releaseFromQuarantine(processId);
       setActionMessage(response.message);
-      await refresh();
+      await refreshSnapshot();
     } catch (err) {
       setActionMessage(err instanceof Error ? err.message : 'Failed to release process');
     }
