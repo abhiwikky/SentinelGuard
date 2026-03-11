@@ -44,6 +44,7 @@ cd ..
 Artifact:
 
 - `kernel\build\Release\SentinelGuard.sys`
+- `kernel\SentinelGuard.inf`
 
 ### Quarantine helper
 
@@ -115,6 +116,7 @@ The installer copies:
 - agent executable
 - quarantine helper
 - kernel driver
+- kernel INF
 - browser bundle from `ui\dist`
 - `ui\server.js`
 - `ui\start-web.ps1`
@@ -128,7 +130,7 @@ It also creates:
 
 - `C:\Program Files\SentinelGuard`
 - `C:\ProgramData\SentinelGuard`
-- `SentinelGuard` kernel service
+- `SentinelGuard` kernel minifilter registration via the INF
 - `SentinelGuardAgent` service unless `-SkipAgentService` is used
 
 Launch the installed browser UI:
@@ -159,6 +161,7 @@ Verify artifacts exist before install:
 ```powershell
 Test-Path agent\target\release\sentinelguard-agent.exe
 Test-Path kernel\build\Release\SentinelGuard.sys
+Test-Path kernel\SentinelGuard.inf
 Test-Path quarantine\build\Release\quarantine.exe
 Test-Path ui\dist
 Test-Path ui\server.js
@@ -169,7 +172,9 @@ Get-ChildItem ml\models\*.onnx
 Verify services after install:
 
 ```powershell
-sc.exe query SentinelGuard
+sc.exe qc SentinelGuard
+fltmc load SentinelGuard
+fltmc
 sc.exe query SentinelGuardAgent
 ```
 

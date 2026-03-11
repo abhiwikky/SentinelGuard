@@ -48,6 +48,7 @@ $UiProtoSource = Join-Path $RepoRoot "agent\proto\sentinelguard.proto"
 $ModelGlob = Join-Path $RepoRoot "ml\models\*.onnx"
 $ConfigToml = Join-Path $RepoRoot "agent\config\config.toml"
 $DriverSys = Join-Path $RepoRoot "kernel\build\Release\SentinelGuard.sys"
+$DriverInf = Join-Path $RepoRoot "kernel\SentinelGuard.inf"
 
 if (-not (Test-Path $AgentExe)) {
     throw "Missing agent binary: $AgentExe. Build it with: cd agent; cargo build --release"
@@ -78,6 +79,9 @@ if (-not (Get-ChildItem -Path $ModelGlob -ErrorAction SilentlyContinue)) {
 }
 if (-not (Test-Path $ConfigToml)) {
     throw "Missing config file: $ConfigToml"
+}
+if (-not (Test-Path $DriverInf)) {
+    throw "Missing driver INF: $DriverInf"
 }
 
 # Copy agent executable
@@ -114,25 +118,27 @@ if (-not $SkipDriver) {
     }
     Write-Host "Installing kernel driver..." -ForegroundColor Yellow
     $driverPath = "$InstallPath\SentinelGuard.sys"
+    $driverInfPath = "$InstallPath\SentinelGuard.inf"
     Copy-Item $DriverSys -Destination $driverPath -Force
-    
-    # Install driver service
+    Copy-Item $DriverInf -Destination $driverInfPath -Force
+
     $serviceName = "SentinelGuard"
     $existingService = Get-Service -Name $serviceName -ErrorAction SilentlyContinue
-    
+
     if ($existingService) {
         Write-Host "Stopping existing driver service..." -ForegroundColor Yellow
         Stop-Service -Name $serviceName -Force -ErrorAction SilentlyContinue
         sc.exe delete $serviceName | Out-Null
     }
-    
-    Write-Host "Creating driver service..." -ForegroundColor Yellow
-    sc.exe create $serviceName type= kernel binPath= "$driverPath" start= demand
-    
+
+    Write-Host "Registering kernel minifilter with SetupAPI..." -ForegroundColor Yellow
+    $installInf = "DefaultInstall.NTamd64"
+    & rundll32.exe setupapi.dll,InstallHinfSection $installInf 132 $driverInfPath
+
     if ($LASTEXITCODE -eq 0) {
-        Write-Host "Driver service created successfully" -ForegroundColor Green
+        Write-Host "Kernel minifilter installed successfully" -ForegroundColor Green
     } else {
-        Write-Host "WARNING: Failed to create driver service. Driver may need to be signed." -ForegroundColor Red
+        Write-Host "WARNING: Failed to install kernel minifilter. Driver may need to be signed or the INF may be rejected." -ForegroundColor Red
     }
 }
 
@@ -190,8 +196,9 @@ if (-not $SkipAgentService) {
 Write-Host ""
 Write-Host "Next steps:" -ForegroundColor Yellow
 Write-Host "1. Sign the kernel driver with a valid certificate" -ForegroundColor Yellow
-Write-Host "2. Start the driver service: sc start SentinelGuard" -ForegroundColor Yellow
+Write-Host "2. Start the driver with: fltmc load SentinelGuard" -ForegroundColor Yellow
 Write-Host "3. Configure settings in: $InstallPath\config\config.toml" -ForegroundColor Yellow
 Write-Host "4. Launch the browser UI: powershell -ExecutionPolicy Bypass -File `"$InstallPath\ui\start-web.ps1`"" -ForegroundColor Yellow
 Write-Host "5. Open http://localhost:4173 in your browser" -ForegroundColor Yellow
+Write-Host "6. Verify the filter is loaded: fltmc" -ForegroundColor Yellow
 

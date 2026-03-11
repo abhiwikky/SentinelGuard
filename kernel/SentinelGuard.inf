@@ -1,19 +1,39 @@
 ;
-; SentinelGuard Kernel Driver INF
+; SentinelGuard Kernel Minifilter Driver INF
 ;
 
 [Version]
 Signature="$WINDOWS NT$"
-Class=System
-ClassGuid={4D36E97D-E325-11CE-BFC1-08002BE10318}
+Class=ActivityMonitor
+ClassGuid={b86dff51-a31e-4bac-b3cf-e8cfe75c9fc2}
 Provider=%ManufacturerName%
-DriverVer=01/01/2024,1.0.0.0
+DriverVer=03/11/2026,1.0.0.0
 CatalogFile=SentinelGuard.cat
 PnpLockdown=1
 
+[DefaultInstall.NTamd64]
+OptionDesc = %SentinelGuard.ServiceDesc%
+CopyFiles = SentinelGuard.CopyFiles
+
+[DefaultInstall.NTamd64.Services]
+AddService = SentinelGuard,,SentinelGuard.Service
+
+[DefaultInstall.NTamd64.HW]
+AddReg = SentinelGuard.AddRegistry
+
+[DefaultUninstall.NTamd64]
+LegacyUninstall = 1
+DelFiles = SentinelGuard.CopyFiles
+
+[DefaultUninstall.NTamd64.Services]
+DelService = SentinelGuard,0x200
+
+[DefaultUninstall.NTamd64.HW]
+DelReg = SentinelGuard.DelRegistry
+
 [DestinationDirs]
 DefaultDestDir = 12
-SentinelGuard_Device_CoInstaller_CopyFiles = 11
+SentinelGuard.CopyFiles = 12
 
 [SourceDisksNames]
 1 = %DiskName%,,,""
@@ -21,42 +41,32 @@ SentinelGuard_Device_CoInstaller_CopyFiles = 11
 [SourceDisksFiles]
 SentinelGuard.sys = 1,,
 
-;*****************************************
-; Install Section
-;*****************************************
-
-[Manufacturer]
-%ManufacturerName%=Standard,NTamd64
-
-[Standard.NTamd64]
-%SentinelGuard.DeviceDesc%=SentinelGuard_Device, Root\SentinelGuard
-
-[SentinelGuard_Device.NT]
-CopyFiles=DriversDir
-
-[SentinelGuard_Device.NT.Services]
-AddService = SentinelGuard,%SPSVCINST_ASSOCSERVICE%, SentinelGuard_Service_Inst
-
-[SentinelGuard_Service_Inst]
-DisplayName    = %SentinelGuard.SVCDESC%
-ServiceType    = 1               ; SERVICE_KERNEL_DRIVER
-StartType      = 3               ; SERVICE_DEMAND_START
-ErrorControl   = 1               ; SERVICE_ERROR_NORMAL
-ServiceBinary  = %12%\SentinelGuard.sys
-
-[SentinelGuard_Device.NT.Wdf]
-KmdfService =  SentinelGuard, SentinelGuard_wdfsect
-
-[SentinelGuard_wdfsect]
-KmdfLibraryVersion = 1.15
-
-[DriversDir]
+[SentinelGuard.CopyFiles]
 SentinelGuard.sys
 
-[Strings]
-SPSVCINST_ASSOCSERVICE= 0x00000002
-ManufacturerName="SentinelGuard"
-DiskName = "SentinelGuard Installation Disk"
-SentinelGuard.DeviceDesc = "SentinelGuard Kernel Filter Driver"
-SentinelGuard.SVCDESC = "SentinelGuard Kernel Filter Driver"
+[SentinelGuard.Service]
+DisplayName      = %SentinelGuard.ServiceDesc%
+Description      = %SentinelGuard.ServiceDesc%
+ServiceBinary    = %12%\SentinelGuard.sys
+Dependencies     = FltMgr
+ServiceType      = 2
+StartType        = 3
+ErrorControl     = 1
+LoadOrderGroup   = "FSFilter Activity Monitor"
+AddReg           = SentinelGuard.AddRegistry
 
+[SentinelGuard.AddRegistry]
+HKR,"Instances","DefaultInstance",0x00000000,%SentinelGuard.DefaultInstance%
+HKR,"Instances\"%SentinelGuard.DefaultInstance%,"Altitude",0x00000000,%SentinelGuard.Altitude%
+HKR,"Instances\"%SentinelGuard.DefaultInstance%,"Flags",0x00010001,%SentinelGuard.Flags%
+
+[SentinelGuard.DelRegistry]
+HKR,"Instances",,0x00000010
+
+[Strings]
+ManufacturerName = "SentinelGuard"
+DiskName = "SentinelGuard Installation Disk"
+SentinelGuard.ServiceDesc = "SentinelGuard Kernel Minifilter Driver"
+SentinelGuard.DefaultInstance = "SentinelGuard Default Instance"
+SentinelGuard.Altitude = "370030"
+SentinelGuard.Flags = 0

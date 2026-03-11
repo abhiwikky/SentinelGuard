@@ -179,6 +179,7 @@ The installer currently expects these inputs:
 
 - `agent\target\release\sentinelguard-agent.exe`
 - `kernel\build\Release\SentinelGuard.sys`
+- `kernel\SentinelGuard.inf`
 - `quarantine\build\Release\quarantine.exe`
 - `ui\dist\`
 - `ui\server.js`
@@ -192,8 +193,8 @@ The installer currently expects these inputs:
 What it does:
 
 - creates `C:\Program Files\SentinelGuard`
-- copies the agent, driver, quarantine helper, browser UI bundle, browser bridge, UI dependencies, config, proto, and ONNX model
-- creates the `SentinelGuard` kernel service unless `-SkipDriver` is used
+- copies the agent, driver, driver INF, quarantine helper, browser UI bundle, browser bridge, UI dependencies, config, proto, and ONNX model
+- installs the `SentinelGuard` kernel minifilter through the INF unless `-SkipDriver` is used
 - creates the `SentinelGuardAgent` service unless `-SkipAgentService` is used
 - creates `C:\ProgramData\SentinelGuard`
 
@@ -216,7 +217,7 @@ Use only one launch path at a time:
 
 Current limitations:
 
-- The driver must be signed before Windows will load it outside test scenarios.
+- The driver must be signed before Windows will load it outside test scenarios, and the current INF/install flow should be validated with `fltmc load SentinelGuard` and `fltmc`.
 - The agent executable is not implemented as a native Windows service yet; the installer already warns that service start may fail.
 - The browser UI can verify bridge reachability and agent-reported health, but some data panels are still backed by placeholder gRPC responses.
 
@@ -236,6 +237,16 @@ The script signs:
 
 ## Testing
 
+Kernel/minifilter verification:
+
+```powershell
+sc.exe qc SentinelGuard
+fltmc load SentinelGuard
+fltmc
+```
+
+You should see `SentinelGuard` in the `fltmc` output after a successful load.
+
 Agent tests:
 
 ```powershell
@@ -253,6 +264,7 @@ python tests\e2e_test.py
 Current limitation:
 
 - The E2E script is a simulator and does not yet validate full agent-driver-dashboard behavior automatically.
+- For end-to-end testing today, run the agent manually and confirm gRPC on `127.0.0.1:50051`, then verify the filter with `fltmc` and inspect `C:\ProgramData\SentinelGuard\sentinelguard.db`.
 
 ## Useful References
 
