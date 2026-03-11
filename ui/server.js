@@ -7,14 +7,23 @@ const protoLoader = require('@grpc/proto-loader');
 const PORT = Number(process.env.SG_UI_PORT || 4173);
 const GRPC_ADDRESS = process.env.SG_GRPC_ADDR || '127.0.0.1:50051';
 const DIST_DIR = path.resolve(__dirname, 'dist');
-const PROTO_PATH = path.resolve(__dirname, 'proto', 'sentinelguard.proto');
+const PROTO_CANDIDATES = [
+  path.resolve(__dirname, 'proto', 'sentinelguard.proto'),
+  path.resolve(__dirname, '..', 'agent', 'proto', 'sentinelguard.proto'),
+];
 
-if (!fs.existsSync(PROTO_PATH)) {
-  throw new Error(`Missing proto file: ${PROTO_PATH}`);
+function resolveProtoPath() {
+  for (const candidate of PROTO_CANDIDATES) {
+    if (fs.existsSync(candidate)) {
+      return candidate;
+    }
+  }
+  throw new Error(`Missing proto file. Checked: ${PROTO_CANDIDATES.join(', ')}`);
 }
 
 function loadGrpcClient() {
-  const packageDefinition = protoLoader.loadSync(PROTO_PATH, {
+  const protoPath = resolveProtoPath();
+  const packageDefinition = protoLoader.loadSync(protoPath, {
     keepCase: false,
     longs: Number,
     enums: String,
