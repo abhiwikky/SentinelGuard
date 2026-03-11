@@ -1,189 +1,159 @@
 # SentinelGuard Deployment Guide
 
+This guide matches the repository as of March 11, 2026. It focuses on building the current components and installing the artifacts expected by `scripts/install.ps1`.
+
 ## Prerequisites
 
-- Windows 10/11 (64-bit)
-- Administrator privileges
-- Windows Driver Kit (WDK) 10 (for driver build)
-- Visual Studio 2019 or later
-- Rust toolchain (stable)
-- Node.js 18+ (for UI build)
+- Windows 10/11 x64
+- Visual Studio 2022 with Desktop development with C++
+- CMake 3.15+
+- Windows Driver Kit 10
+- Rust stable
+- Python 3.10+
+- Node.js 18+
+- Administrator privileges for installation
 
-## Installation Steps
+Optional:
 
-### 1. Build Components
+- `WDK_ROOT` if your WDK is not installed under the default Windows Kits path
 
-#### Kernel Driver
-```powershell
-cd kernel
-mkdir build
-cd build
-cmake .. -G "Visual Studio 16 2019" -A x64
-cmake --build . --config Release
-```
+## Build Steps
 
-#### Rust Agent
+### Rust agent
+
 ```powershell
 cd agent
 cargo build --release
+cd ..
 ```
 
-#### Quarantine Module
+Artifact:
+
+- `agent\target\release\sentinelguard-agent.exe`
+
+### Kernel driver
+
+```powershell
+cd kernel
+New-Item -ItemType Directory -Force build | Out-Null
+cmake -S . -B build -G "Visual Studio 17 2022" -A x64
+cmake --build build --config Release
+cd ..
+```
+
+Artifact:
+
+- `kernel\build\Release\SentinelGuard.sys`
+
+### Quarantine helper
+
 ```powershell
 cd quarantine
-mkdir build
-cd build
-cmake .. -G "Visual Studio 16 2019" -A x64
-cmake --build . --config Release
+New-Item -ItemType Directory -Force build | Out-Null
+cmake -S . -B build -G "Visual Studio 17 2022" -A x64
+cmake --build build --config Release
+cd ..
 ```
 
-#### UI Dashboard
+Artifact:
+
+- `quarantine\build\Release\quarantine.exe`
+
+### ML model
+
+```powershell
+cd ml
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+python train_model.py
+cd ..
+```
+
+Artifacts:
+
+- `ml\models\sentinelguard_model.onnx`
+- `ml\models\random_forest.joblib`
+- `ml\models\scaler.joblib`
+
+### UI renderer
+
 ```powershell
 cd ui
 npm install
-npm run build
+npm run build:react
+cd ..
 ```
 
-### 2. Code Signing
+Artifact:
 
-**Important**: Kernel drivers must be signed before installation.
+- `ui\dist\`
 
-1. Obtain a code signing certificate
-2. Sign the driver:
-```powershell
-signtool sign /f certificate.pfx /p password /t http://timestamp.digicert.com SentinelGuard.sys
-```
-
-3. Sign the agent and quarantine executables:
-```powershell
-signtool sign /f certificate.pfx /p password sentinelguard-agent.exe
-signtool sign /f certificate.pfx /p password quarantine.exe
-```
-
-### 3. Install Kernel Driver
-
-```powershell
-# Copy driver to system directory
-copy SentinelGuard.sys "C:\Windows\System32\drivers\"
-
-# Install driver
-sc create SentinelGuard type= kernel binPath= "C:\Windows\System32\drivers\SentinelGuard.sys"
-sc start SentinelGuard
-
-# Verify installation
-sc query SentinelGuard
-```
-
-### 4. Install Rust Agent Service
-
-```powershell
-# Copy agent executable
-copy sentinelguard-agent.exe "C:\Program Files\SentinelGuard\"
-
-# Create service
-sc create SentinelGuardAgent binPath= "C:\Program Files\SentinelGuard\sentinelguard-agent.exe" start= auto
-sc start SentinelGuardAgent
-
-# Verify service
-sc query SentinelGuardAgent
-```
-
-### 5. Install Quarantine Module
-
-```powershell
-copy quarantine.exe "C:\Program Files\SentinelGuard\"
-```
-
-### 6. Install UI Dashboard
+Optional Electron packaging:
 
 ```powershell
 cd ui
 npm run build
-# Install Electron app using electron-builder or manual installation
+cd ..
 ```
 
-### 7. Configuration
+Note:
 
-Edit `C:\Program Files\SentinelGuard\config\config.toml`:
+- `scripts/install.ps1` expects `ui\dist`, not the packaged Electron output.
 
-```toml
-[database]
-path = "C:\\ProgramData\\SentinelGuard\\sentinelguard.db"
+## Install
 
-[ml]
-model_path = "C:\\Program Files\\SentinelGuard\\models\\ransomware_model.onnx"
+Run from an elevated PowerShell session:
 
-[quarantine]
-threshold = 0.7
-
-[detectors]
-entropy_threshold = 0.8
-mass_write_threshold = 50
+```powershell
+.\scripts\install.ps1
 ```
 
-### 8. ML Model
+The installer copies:
 
-Place the trained ONNX model at:
-```
-C:\Program Files\SentinelGuard\models\ransomware_model.onnx
+- agent executable
+- quarantine helper
+- kernel driver
+- renderer bundle from `ui\dist`
+- ONNX model from `ml\models`
+- `agent\config\config.toml`
+
+It also creates:
+
+- `C:\Program Files\SentinelGuard`
+- `C:\ProgramData\SentinelGuard`
+- `SentinelGuard` kernel service
+- `SentinelGuardAgent` service unless `-SkipAgentService` is used
+
+## Signing
+
+Before loading the kernel driver on a normal Windows system, sign it:
+
+```powershell
+.\scripts\sign_binaries.ps1 -CertificatePath "cert.pfx" -CertificatePassword "password"
 ```
 
 ## Verification
 
-1. Check driver status:
-```powershell
-sc query SentinelGuard
-```
-
-2. Check agent service:
-```powershell
-sc query SentinelGuardAgent
-```
-
-3. Verify database creation:
-```powershell
-dir "C:\ProgramData\SentinelGuard\"
-```
-
-4. Launch UI and verify connection
-
-## Uninstallation
+Verify artifacts exist before install:
 
 ```powershell
-# Stop services
-sc stop SentinelGuardAgent
-sc stop SentinelGuard
-
-# Delete services
-sc delete SentinelGuardAgent
-sc delete SentinelGuard
-
-# Remove files
-rmdir /s "C:\Program Files\SentinelGuard"
-rmdir /s "C:\ProgramData\SentinelGuard"
+Test-Path agent\target\release\sentinelguard-agent.exe
+Test-Path kernel\build\Release\SentinelGuard.sys
+Test-Path quarantine\build\Release\quarantine.exe
+Test-Path ui\dist
+Get-ChildItem ml\models\*.onnx
 ```
 
-## Troubleshooting
+Verify services after install:
 
-### Driver Not Loading
-- Verify code signing
-- Check Event Viewer for errors
-- Ensure Windows Test Signing is enabled (for test builds)
+```powershell
+sc.exe query SentinelGuard
+sc.exe query SentinelGuardAgent
+```
 
-### Agent Not Starting
-- Check service logs
-- Verify configuration file exists
-- Ensure database directory is writable
+## Current Limitations
 
-### No Events Detected
-- Verify driver is loaded: `sc query SentinelGuard`
-- Check ALPC connection in agent logs
-- Verify file operations are being intercepted
-
-## Maintenance
-
-- Regular database cleanup (configure retention period)
-- ML model updates
-- Detector rule updates
-- Log rotation
-
+- The agent currently uses built-in defaults from `agent/src/config.rs`; installed TOML values are not parsed yet.
+- The agent binary is not implemented as a full Windows service yet, so service startup can fail.
+- The installed UI is only the renderer bundle, not a packaged Electron desktop application.
+- Several gRPC and dashboard features are still placeholders.

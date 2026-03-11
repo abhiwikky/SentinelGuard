@@ -1,338 +1,235 @@
-# SentinelGuard — Real-Time Ransomware Detection & Intervention System
+# SentinelGuard
 
-[![CI/CD](https://github.com/abhiwikky/SentinelGuard/workflows/CI/badge.svg)](https://github.com/abhiwikky/SentinelGuard/actions)
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+Real-time ransomware detection and intervention for Windows. The repository contains a kernel minifilter driver, a Rust user-mode agent, an ML training pipeline, a quarantine helper, and an Electron/React dashboard.
 
-**SentinelGuard** is an enterprise-grade, real-time ransomware detection and intervention system for Windows. It combines kernel-level monitoring, multi-detector analysis, machine learning correlation, and automated quarantine to protect systems from ransomware attacks.
+## Repository Layout
 
-## 🎯 Features
+- `kernel/`: Windows minifilter driver built with CMake and the WDK
+- `agent/`: Rust agent with detector pipeline, SQLite logging, and gRPC server
+- `quarantine/`: native helper executable used to suspend or release processes
+- `ml/`: Python training pipeline that exports an ONNX model
+- `ui/`: Electron shell plus React renderer
+- `scripts/`: install, uninstall, and signing scripts
+- `tests/`: end-to-end simulator scripts
 
-- **Kernel-Level Monitoring**: Windows minifilter driver intercepts all file operations in real-time
-- **Multi-Detector Analysis**: 7 specialized detectors analyze entropy, mass operations, ransom notes, and more
-- **ML-Powered Correlation**: ONNX-based machine learning engine correlates detector outputs for accurate classification
-- **Automated Quarantine**: Instant process suspension and file isolation upon detection
-- **Real-Time Dashboard**: Electron-based UI with live alerts and system health monitoring
-- **ETW Integration**: Extended monitoring via Event Tracing for Windows
-- **Secure Communication**: gRPC with mTLS for agent-UI communication
-- **Comprehensive Logging**: SQLite database for audit trails and telemetry
+## Current State
 
-## 🏗️ Architecture
+The old README had drifted from the codebase. These points reflect the repository as it exists now:
 
-```
-┌─────────────────────────────────────────┐
-│      Electron/React UI Dashboard       │
-└────────────────┬────────────────────────┘
-                 │ gRPC
-                 ▼
-┌─────────────────────────────────────────┐
-│      Rust User-Mode Agent               │
-│  ┌──────────┐  ┌──────────┐  ┌────────┐ │
-│  │ Event    │→ │ Detector │→ │   ML   │ │
-│  │ Ingestion│  │ Manager  │  │ Engine │ │
-│  └──────────┘  └──────────┘  └────────┘ │
-└────────┬─────────────────────────────────┘
-         │ ALPC/Named Pipes
-         ▼
-┌─────────────────────────────────────────┐
-│   Kernel Minifilter Driver (C++)        │
-│   + ETW Providers                       │
-└─────────────────────────────────────────┘
-```
+- The top-level docs had encoding corruption; this file is now ASCII-only.
+- The kernel and quarantine components are C/C++ projects built with CMake. The kernel build prefers a WDK CMake package and falls back to `WDK_ROOT`.
+- The ML training script currently writes `ml/models/sentinelguard_model.onnx`.
+- The installer copies `ui/dist`, which is the Vite renderer bundle. It does not currently package a complete Electron desktop app on its own.
+- `agent/src/config.rs` currently returns built-in defaults; `agent/config/config.toml` is installed, but the agent does not parse it yet.
+- Some gRPC and UI features are still placeholders; see `PROJECT_STATUS.md` for gaps.
 
-## 📦 Components
+## Prerequisites
 
-### 1. Kernel Minifilter Driver (`kernel/`)
-- **Language**: C++
-- **Technology**: Windows Filter Manager (FltMgr), ETW
-- **Purpose**: Intercept file system operations, monitor process creation, detect VSS deletion attempts
-- **Key Features**:
-  - File create, read, write, rename, delete interception
-  - Process path and file path extraction
-  - Entropy calculation for write operations
-  - ALPC communication with user-mode agent
+Build everything on Windows 10/11 x64.
 
-### 2. Rust User-Mode Agent (`agent/`)
-- **Language**: Rust
-- **Technology**: Tokio async runtime, ONNX Runtime, gRPC (Tonic)
-- **Purpose**: Event processing, detector execution, ML inference, quarantine triggering
-- **Modules**:
-  - Event Ingestion: Receives and batches kernel events
-  - Detector Manager: Runs 7 detectors in parallel
-  - Correlation Engine: ONNX-based ML inference
-  - Quarantine Controller: Triggers C++ quarantine module
-  - gRPC Server: Serves UI dashboard
-  - Database Logger: SQLite telemetry storage
+- Visual Studio 2022 with Desktop development with C++
+- CMake 3.15+
+- Windows Driver Kit 10
+- Rust stable toolchain
+- Node.js 18+ and npm
+- Python 3.10+
+- Administrator privileges for driver installation and service creation
 
-### 3. Detectors (`agent/src/detectors/`)
-Each detector produces a risk score (0.0 - 1.0):
+Optional environment variables:
 
-1. **Entropy Spike Detector**: Detects rapid increases in file entropy (encryption indicator)
-2. **Mass Write Detector**: Identifies bulk file modifications within time windows
-3. **Mass Rename/Delete Detector**: Flags rename/delete storms
-4. **Ransom Note Detector**: Pattern matching for common ransom note text (YARA)
-5. **Shadow Copy Deletion Detector**: Monitors VSS deletion attempts
-6. **Process Behavior Detector**: Analyzes suspicious process behavior (DLL loads, API calls)
-7. **File Extension Explosion Detector**: Detects known ransomware extensions (.locked, .encrypted, etc.)
+- `WDK_ROOT`: override the default WDK install path if it is not under `C:\Program Files (x86)\Windows Kits\10`
 
-### 4. ML Correlation Engine (`ml/`)
-- **Training**: Python (scikit-learn, LightGBM)
-- **Inference**: Rust (ONNX Runtime)
-- **Features**: 15 features including detector scores and derived metrics
-- **Model**: RandomForest classifier exported to ONNX format
+## Full Build
 
-### 5. Quarantine Module (`quarantine/`)
-- **Language**: C++
-- **Technology**: NT Native APIs
-- **Actions**:
-  - Suspend malicious processes (`NtSuspendProcess`)
-  - Block file handles
-  - Isolate written files
-  - Set file ACLs to read-only
+Run the steps from the repository root `C:\Users\abhij\SentinelGuard`.
 
-### 6. UI Dashboard (`ui/`)
-- **Technology**: Electron + React + Tailwind CSS
-- **Features**:
-  - Live alerts feed
-  - Process risk overview
-  - Quarantined process management
-  - Detector logs
-  - System health monitoring
-  - Configuration management
-
-## 🚀 Quick Start
-
-### Prerequisites
-
-- **Windows 10/11** (x64)
-- **Visual Studio 2019+** with C++ Desktop Development
-- **Windows Driver Kit (WDK) 10**
-- **Rust** (stable, latest)
-- **Node.js** 18+ and npm
-- **Python** 3.10+ (for ML training)
-- **Administrator privileges** (for driver installation)
-
-### Building
-
-#### 1. Build Rust Agent
+### 1. Build the Rust agent
 
 ```powershell
 cd agent
 cargo build --release
+cd ..
 ```
 
-#### 2. Build Kernel Driver
+Expected artifact:
+
+- `agent\target\release\sentinelguard-agent.exe`
+
+### 2. Build the kernel driver
 
 ```powershell
 cd kernel
-mkdir build
-cd build
-cmake .. -G "Visual Studio 17 2022" -A x64
-cmake --build . --config Release
+New-Item -ItemType Directory -Force build | Out-Null
+cmake -S . -B build -G "Visual Studio 17 2022" -A x64
+cmake --build build --config Release
+cd ..
 ```
 
-#### 3. Build Quarantine Module
+Expected artifact:
+
+- `kernel\build\Release\SentinelGuard.sys`
+
+Notes:
+
+- If CMake cannot find the WDK automatically, pass `-DWDK_ROOT="C:\Program Files (x86)\Windows Kits\10"` or your installed WDK path.
+- A production install still requires code signing for the driver.
+
+### 3. Build the quarantine helper
 
 ```powershell
 cd quarantine
-mkdir build
-cd build
-cmake .. -G "Visual Studio 17 2022" -A x64
-cmake --build . --config Release
+New-Item -ItemType Directory -Force build | Out-Null
+cmake -S . -B build -G "Visual Studio 17 2022" -A x64
+cmake --build build --config Release
+cd ..
 ```
 
-#### 4. Train ML Model
+Expected artifact:
+
+- `quarantine\build\Release\quarantine.exe`
+
+### 4. Train the ML model
 
 ```powershell
 cd ml
+python -m pip install --upgrade pip
 pip install -r requirements.txt
 python train_model.py
+cd ..
 ```
 
-#### 5. Build UI
+Expected artifacts:
+
+- `ml\models\sentinelguard_model.onnx`
+- `ml\models\random_forest.joblib`
+- `ml\models\scaler.joblib`
+
+Important:
+
+- The training script currently generates synthetic data. It is useful for wiring the pipeline, not for production accuracy claims.
+
+### 5. Install UI dependencies
 
 ```powershell
 cd ui
 npm install
-npm run build
+cd ..
 ```
 
-### Installation
+### 6. Build the UI renderer
 
-Run the installation script with administrator privileges:
+If you want the files expected by `scripts\install.ps1`, build the React renderer bundle:
+
+```powershell
+cd ui
+npm run build:react
+cd ..
+```
+
+Expected artifact:
+
+- `ui\dist\`
+
+### 7. Optionally package the Electron app
+
+If you want Electron packaging as defined in `ui/package.json`, run:
+
+```powershell
+cd ui
+npm run build
+cd ..
+```
+
+Important:
+
+- `npm run build` runs both `vite build` and `electron-builder`.
+- The current install script does not consume packaged Electron output; it copies only `ui\dist`.
+
+## One-Pass Build Order
+
+If you want the entire repository built in the order required by the current scripts:
+
+1. `agent`: `cargo build --release`
+2. `kernel`: `cmake -S . -B build ...` then `cmake --build build --config Release`
+3. `quarantine`: `cmake -S . -B build ...` then `cmake --build build --config Release`
+4. `ml`: `pip install -r requirements.txt` then `python train_model.py`
+5. `ui`: `npm install` then `npm run build:react`
+
+That sequence produces all artifacts consumed by `scripts\install.ps1`.
+
+## Installation
+
+After the builds finish, run the installer from an elevated PowerShell session:
 
 ```powershell
 .\scripts\install.ps1
 ```
 
-This will:
-- Install kernel driver service
-- Install agent as Windows service
-- Copy binaries and configuration
-- Set up directories and permissions
+The installer currently expects these inputs:
 
-**Note**: The kernel driver must be signed with a valid code signing certificate for production use.
+- `agent\target\release\sentinelguard-agent.exe`
+- `kernel\build\Release\SentinelGuard.sys`
+- `quarantine\build\Release\quarantine.exe`
+- `ui\dist\`
+- `ml\models\*.onnx`
+- `agent\config\config.toml`
 
-### Code Signing
+What it does:
 
-Sign all binaries before deployment:
+- creates `C:\Program Files\SentinelGuard`
+- copies the agent, driver, quarantine helper, UI renderer assets, config, and ONNX model
+- creates the `SentinelGuard` kernel service unless `-SkipDriver` is used
+- creates the `SentinelGuardAgent` service unless `-SkipAgentService` is used
+- creates `C:\ProgramData\SentinelGuard`
+
+Current limitations:
+
+- The driver must be signed before Windows will load it outside test scenarios.
+- The agent executable is not implemented as a native Windows service yet; the installer already warns that service start may fail.
+- The installed UI path is not a fully packaged Electron app.
+
+## Signing
+
+To sign the built binaries:
 
 ```powershell
 .\scripts\sign_binaries.ps1 -CertificatePath "cert.pfx" -CertificatePassword "password"
 ```
 
-## 🔧 Configuration
+The script signs:
 
-Edit `agent/config/config.toml`:
+- `agent\target\release\sentinelguard-agent.exe`
+- `quarantine\build\Release\quarantine.exe`
+- `kernel\build\Release\SentinelGuard.sys`
 
-```toml
-[database]
-path = "C:\\ProgramData\\SentinelGuard\\sentinelguard.db"
+## Testing
 
-[ml]
-model_path = "models\\sentinelguard_model.onnx"
-quarantine_threshold = 0.7
-
-[detectors]
-entropy_threshold = 0.8
-mass_write_threshold = 50
-mass_write_window_seconds = 10
-```
-
-## 🧪 Testing
-
-### Unit Tests
+Agent tests:
 
 ```powershell
 cd agent
 cargo test
+cd ..
 ```
 
-### Integration Tests
+End-to-end simulator:
 
 ```powershell
-cd agent
-cargo test --test integration_test
+python tests\e2e_test.py
 ```
 
-### End-to-End Tests
+Current limitation:
 
-```powershell
-python tests/e2e_test.py
-```
+- The E2E script is a simulator and does not yet validate full agent-driver-dashboard behavior automatically.
 
-## 📊 Usage
+## Useful References
 
-### Starting Services
+- `PROJECT_STATUS.md`: implemented areas and known gaps
+- `docs/ARCHITECTURE.md`: architecture notes
+- `docs/API.md`: gRPC surface
+- `docs/DEPLOYMENT.md`: deployment-oriented notes
+- `kernel/README.md`, `agent/README.md`, `quarantine/README.md`, `ml/README.md`: component-specific docs
 
-```powershell
-# Start kernel driver
-sc start SentinelGuard
+## License
 
-# Start agent (auto-starts as service)
-sc start SentinelGuardAgent
-```
-
-### Viewing Logs
-
-```powershell
-# Agent logs
-Get-Content "C:\Program Files\SentinelGuard\logs\agent.log" -Tail 50
-
-# Database queries
-sqlite3 "C:\ProgramData\SentinelGuard\sentinelguard.db" "SELECT * FROM alerts ORDER BY timestamp DESC LIMIT 10;"
-```
-
-### Launching UI
-
-```powershell
-cd "C:\Program Files\SentinelGuard\ui"
-.\sentinelguard-ui.exe
-```
-
-## 🔒 Security Features
-
-- **Code Signing**: All binaries signed with trusted certificates
-- **Tamper Detection**: Periodic integrity checks on agent, driver, and config
-- **Process Protection**: Anti-debug and process protection mechanisms
-- **Secure Communication**: gRPC with mTLS (optional)
-- **Access Control**: Restricted file permissions and service isolation
-
-## 📚 Documentation
-
-- [Architecture Documentation](docs/ARCHITECTURE.md)
-- [API Reference](docs/API.md)
-- [Deployment Guide](docs/DEPLOYMENT.md)
-- [ML Features Reference](docs/ML_FEATURES.md)
-- [Threat Model](docs/THREAT_MODEL.md)
-
-## 🛠️ Development
-
-### Project Structure
-
-```
-SentinelGuard/
-├── agent/              # Rust user-mode agent
-│   ├── src/
-│   │   ├── detectors/  # Detector modules
-│   │   ├── correlation.rs
-│   │   ├── database.rs
-│   │   └── ...
-│   └── Cargo.toml
-├── kernel/             # C++ minifilter driver
-│   ├── SentinelGuard.c
-│   ├── Events.c
-│   └── ETW.c
-├── quarantine/         # C++ quarantine module
-├── ml/                 # Python ML training
-│   └── train_model.py
-├── ui/                 # Electron/React UI
-├── scripts/            # Installation/signing scripts
-├── tests/              # E2E tests
-└── docs/               # Documentation
-```
-
-### CI/CD
-
-GitHub Actions workflow (`.github/workflows/ci.yml`) builds:
-- Rust agent
-- Kernel driver
-- Quarantine module
-- ML model
-- UI dashboard
-- Creates installer package
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## 📝 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## ⚠️ Disclaimer
-
-**This software is for educational and research purposes. Use in production environments requires:**
-- Valid code signing certificates
-- Thorough testing in your environment
-- Compliance with local regulations
-- Proper security audits
-
-## 🙏 Acknowledgments
-
-- Windows Filter Manager (FltMgr) documentation
-- ONNX Runtime team
-- Rust and Tokio communities
-- All contributors
-
-## 📧 Contact
-
-For questions, issues, or contributions, please open an issue on GitHub.
-
----
-
-**SentinelGuard** — Protecting systems from ransomware, one detection at a time.
-
+This project is licensed under the MIT License. See `LICENSE`.
