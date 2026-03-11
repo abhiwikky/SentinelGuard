@@ -4,7 +4,8 @@
 param(
     [string]$CertificatePath = "",
     [string]$CertificatePassword = "",
-    [string]$TimestampServer = "http://timestamp.digicert.com"
+    [string]$TimestampServer = "http://timestamp.digicert.com",
+    [string]$FileDigestAlgorithm = "SHA256"
 )
 
 $ErrorActionPreference = "Stop"
@@ -38,6 +39,7 @@ foreach ($binary in $binaries) {
             "sign",
             "/f", $CertificatePath,
             "/p", $CertificatePassword,
+            "/fd", $FileDigestAlgorithm,
             "/t", $TimestampServer,
             "/v",
             $binary
