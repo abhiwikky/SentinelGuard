@@ -6,7 +6,10 @@ const protoLoader = require('@grpc/proto-loader');
 
 const PORT = Number(process.env.SG_UI_PORT || 4173);
 const GRPC_ADDRESS = process.env.SG_GRPC_ADDR || '127.0.0.1:50051';
-const DIST_DIR = path.resolve(__dirname, 'dist');
+const DIST_CANDIDATES = [
+  path.resolve(__dirname, 'dist'),
+  __dirname,
+];
 const PROTO_CANDIDATES = [
   path.resolve(__dirname, 'proto', 'sentinelguard.proto'),
   path.resolve(__dirname, '..', 'agent', 'proto', 'sentinelguard.proto'),
@@ -39,6 +42,17 @@ function loadGrpcClient() {
 }
 
 const grpcClient = loadGrpcClient();
+
+function resolveUiRoot() {
+  for (const candidate of DIST_CANDIDATES) {
+    if (fs.existsSync(path.join(candidate, 'index.html'))) {
+      return candidate;
+    }
+  }
+  return path.resolve(__dirname, 'dist');
+}
+
+const UI_ROOT = resolveUiRoot();
 
 function callUnary(method, request = {}) {
   return new Promise((resolve, reject) => {
@@ -286,13 +300,13 @@ const server = http.createServer(async (req, res) => {
 
   const requestedPath = url.pathname === '/' ? '/index.html' : url.pathname;
   const safePath = path.normalize(requestedPath).replace(/^(\.\.[/\\])+/, '');
-  const assetPath = path.join(DIST_DIR, safePath);
+  const assetPath = path.join(UI_ROOT, safePath);
 
   if (serveStatic(res, assetPath)) {
     return;
   }
 
-  const spaEntry = path.join(DIST_DIR, 'index.html');
+  const spaEntry = path.join(UI_ROOT, 'index.html');
   if (serveStatic(res, spaEntry)) {
     return;
   }

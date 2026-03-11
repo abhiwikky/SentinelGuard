@@ -34,6 +34,8 @@ if (Test-Path $UiInstallPath -PathType Leaf) {
     Remove-Item -Force $UiInstallPath
 }
 New-Item -ItemType Directory -Force -Path $UiInstallPath | Out-Null
+$UiDistInstallPath = Join-Path $UiInstallPath "dist"
+New-Item -ItemType Directory -Force -Path $UiDistInstallPath | Out-Null
 
 $AgentExe = Join-Path $RepoRoot "agent\target\release\sentinelguard-agent.exe"
 $QuarantineExe = Join-Path $RepoRoot "quarantine\build\Release\quarantine.exe"
@@ -88,7 +90,7 @@ Copy-Item $QuarantineExe -Destination "$InstallPath\quarantine.exe" -Force
 
 # Copy UI
 Write-Host "Installing browser UI..." -ForegroundColor Yellow
-Copy-Item (Join-Path $UiDist "*") -Destination $UiInstallPath -Recurse -Force
+Copy-Item (Join-Path $UiDist "*") -Destination $UiDistInstallPath -Recurse -Force
 Copy-Item $UiServer -Destination (Join-Path $UiInstallPath "server.js") -Force
 Copy-Item $UiStartScript -Destination (Join-Path $UiInstallPath "start-web.ps1") -Force
 Copy-Item $UiPackageJson -Destination (Join-Path $UiInstallPath "package.json") -Force
