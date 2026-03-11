@@ -135,12 +135,11 @@ Expected artifact:
 
 ### 7. Launch the browser UI locally
 
-Start the local Node.js bridge and open the dashboard in a browser:
+If you are running from the repository checkout, start the local Node.js bridge and open the dashboard in a browser:
 
 ```powershell
 cd ui
 npm run web
-cd ..
 ```
 
 Then open:
@@ -209,6 +208,11 @@ Then open:
 ```text
 http://localhost:4173
 ```
+
+Use only one launch path at a time:
+
+- repository checkout: `cd ui` then `npm run web`
+- installed copy under `C:\Program Files\SentinelGuard`: run `start-web.ps1`
 
 Current limitations:
 

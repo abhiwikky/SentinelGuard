@@ -93,7 +93,6 @@ Local launch:
 ```powershell
 cd ui
 npm run web
-cd ..
 ```
 
 Then open `http://localhost:4173`.
@@ -139,6 +138,11 @@ powershell -ExecutionPolicy Bypass -File "C:\Program Files\SentinelGuard\ui\star
 ```
 
 Then open `http://localhost:4173`.
+
+Use only one of those launch paths:
+
+- repo checkout: `cd ui` then `npm run web`
+- installed copy: run `start-web.ps1`
 
 ## Signing
 
