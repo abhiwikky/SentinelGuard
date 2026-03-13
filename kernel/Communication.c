@@ -49,6 +49,10 @@ NTSTATUS CreateCommunicationPort(VOID)
 
 VOID CloseCommunicationPort(VOID)
 {
+    if (g_DriverContext.ClientPort) {
+        FltCloseClientPort(g_DriverContext.FilterHandle, &g_DriverContext.ClientPort);
+    }
+
     if (g_DriverContext.ServerPort) {
         FltCloseCommunicationPort(g_DriverContext.ServerPort);
         g_DriverContext.ServerPort = NULL;
@@ -100,7 +104,10 @@ VOID PortDisconnectNotifyCallback(
 )
 {
     UNREFERENCED_PARAMETER(ConnectionCookie);
-    g_DriverContext.ClientPort = NULL;
+
+    if (g_DriverContext.ClientPort) {
+        FltCloseClientPort(g_DriverContext.FilterHandle, &g_DriverContext.ClientPort);
+    }
 }
 
 NTSTATUS PortMessageNotifyCallback(

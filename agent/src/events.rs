@@ -19,6 +19,7 @@ pub struct FileEvent {
     pub bytes_read: u64,
     pub bytes_written: u64,
     pub timestamp: i64,
+    pub result: i32,
     pub entropy_preview: Vec<u8>,
 }
 

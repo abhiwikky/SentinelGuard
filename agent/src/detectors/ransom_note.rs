@@ -35,17 +35,14 @@ impl Detector for RansomNoteDetector {
     }
 
     fn analyze(&self, event: &FileEvent, _stats: &ProcessStats) -> f32 {
-        // Check file path for ransom note patterns
         if self.check_patterns(&event.file_path) {
             return 1.0;
         }
 
-        // Check process path
         if self.check_patterns(&event.process_path) {
             return 0.8;
         }
 
-        // In production, would also scan file contents using YARA
         0.0
     }
 }

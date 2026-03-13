@@ -2,7 +2,7 @@
 path = "C:\\ProgramData\\SentinelGuard\\sentinelguard.db"
 
 [ml]
-model_path = "models\\ransomware_model.onnx"
+model_path = "..\\models\\sentinelguard_model.onnx"
 
 [quarantine]
 path = "C:\\Program Files\\SentinelGuard\\quarantine.exe"

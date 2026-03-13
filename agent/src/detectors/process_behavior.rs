@@ -24,27 +24,33 @@ impl Detector for ProcessBehaviorDetector {
         "ProcessBehaviorDetector"
     }
 
-    fn analyze(&self, event: &FileEvent, _stats: &ProcessStats) -> f32 {
-        // Check for suspicious process paths
+    fn analyze(&self, event: &FileEvent, stats: &ProcessStats) -> f32 {
         let process_lower = event.process_path.to_lowercase();
-        
-        // Suspicious locations
-        if process_lower.contains("temp") 
+        let mut score: f32 = 0.0;
+
+        if process_lower.contains("temp")
             || process_lower.contains("appdata\\local\\temp")
-            || process_lower.contains("downloads") {
-            return 0.3;
+            || process_lower.contains("downloads")
+        {
+            score = score.max(0.35);
         }
 
-        // Suspicious file extensions in process path
-        if process_lower.ends_with(".exe") {
-            // Check if executable is in unusual location
-            if !process_lower.contains("program files") 
-                && !process_lower.contains("windows\\system32") {
-                return 0.2;
-            }
+        if process_lower.ends_with(".exe")
+            && !process_lower.contains("program files")
+            && !process_lower.contains("windows\\system32")
+        {
+            score = score.max(0.25);
         }
 
-        0.0
+        if stats.bytes_written_per_sec(event.timestamp, 10) > 50_000.0 {
+            score = score.max(0.7);
+        }
+
+        if stats.directory_diversity(event.timestamp, 10) >= 5 {
+            score = score.max(0.6);
+        }
+
+        score.clamp(0.0, 1.0)
     }
 }
 

@@ -14,12 +14,10 @@ PnpLockdown=1
 [DefaultInstall.NTamd64]
 OptionDesc = %SentinelGuard.ServiceDesc%
 CopyFiles = SentinelGuard.CopyFiles
+AddReg = SentinelGuard.AddRegistry
 
 [DefaultInstall.NTamd64.Services]
 AddService = SentinelGuard,,SentinelGuard.Service
-
-[DefaultInstall.NTamd64.HW]
-AddReg = SentinelGuard.AddRegistry
 
 [DefaultUninstall.NTamd64]
 LegacyUninstall = 1
@@ -28,12 +26,9 @@ DelFiles = SentinelGuard.CopyFiles
 [DefaultUninstall.NTamd64.Services]
 DelService = SentinelGuard,0x200
 
-[DefaultUninstall.NTamd64.HW]
-DelReg = SentinelGuard.DelRegistry
-
 [DestinationDirs]
-DefaultDestDir = 12
-SentinelGuard.CopyFiles = 12
+DefaultDestDir = 13
+SentinelGuard.CopyFiles = 13
 
 [SourceDisksNames]
 1 = %DiskName%,,,""
@@ -47,7 +42,7 @@ SentinelGuard.sys
 [SentinelGuard.Service]
 DisplayName      = %SentinelGuard.ServiceDesc%
 Description      = %SentinelGuard.ServiceDesc%
-ServiceBinary    = %12%\SentinelGuard.sys
+ServiceBinary    = %13%\SentinelGuard.sys
 Dependencies     = FltMgr
 ServiceType      = 2
 StartType        = 3
@@ -59,9 +54,14 @@ AddReg           = SentinelGuard.AddRegistry
 HKR,"Instances","DefaultInstance",0x00000000,%SentinelGuard.DefaultInstance%
 HKR,"Instances\"%SentinelGuard.DefaultInstance%,"Altitude",0x00000000,%SentinelGuard.Altitude%
 HKR,"Instances\"%SentinelGuard.DefaultInstance%,"Flags",0x00010001,%SentinelGuard.Flags%
+HKR,"Parameters","SupportedFeatures",0x00010001,0x3
+HKR,"Parameters\Instances","DefaultInstance",0x00000000,%SentinelGuard.DefaultInstance%
+HKR,"Parameters\Instances\"%SentinelGuard.DefaultInstance%,"Altitude",0x00000000,%SentinelGuard.Altitude%
+HKR,"Parameters\Instances\"%SentinelGuard.DefaultInstance%,"Flags",0x00010001,%SentinelGuard.Flags%
 
 [SentinelGuard.DelRegistry]
 HKR,"Instances",,0x00000010
+HKR,"Parameters",,0x00000010
 
 [Strings]
 ManufacturerName = "SentinelGuard"

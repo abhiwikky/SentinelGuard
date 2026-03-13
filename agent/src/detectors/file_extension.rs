@@ -32,9 +32,14 @@ impl Detector for FileExtensionDetector {
         "FileExtensionDetector"
     }
 
-    fn analyze(&self, event: &FileEvent, _stats: &ProcessStats) -> f32 {
-        if event.event_type != crate::events::EventType::FileCreate 
-            && event.event_type != crate::events::EventType::FileWrite {
+    fn analyze(&self, event: &FileEvent, stats: &ProcessStats) -> f32 {
+        if event.event_type != crate::events::EventType::FileCreate
+            && event.event_type != crate::events::EventType::FileWrite
+            && event.event_type != crate::events::EventType::FileRename
+        {
+            if stats.unique_extensions(event.timestamp, 10) >= 5 {
+                return 0.7;
+            }
             return 0.0;
         }
 
@@ -49,6 +54,10 @@ impl Detector for FileExtensionDetector {
 
         if suspicious_extensions.iter().any(|&ext| extension == ext) {
             return 1.0;
+        }
+
+        if stats.unique_extensions(event.timestamp, 10) >= 5 {
+            return 0.7;
         }
 
         0.0

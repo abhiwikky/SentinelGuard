@@ -11,6 +11,22 @@ VOID ProcessFileEvent(
     _In_ SG_EVENT_TYPE EventType
 );
 
+NTSTATUS CaptureEventContext(
+    _In_ PFLT_CALLBACK_DATA Data,
+    _In_ SG_EVENT_TYPE EventType,
+    _Outptr_ PSG_EVENT_CONTEXT *EventContext
+);
+
+VOID BuildFileEventFromContext(
+    _In_ PFLT_CALLBACK_DATA Data,
+    _In_ PSG_EVENT_CONTEXT EventContext,
+    _Out_ PFILE_EVENT Event
+);
+
+VOID FreeEventContext(
+    _In_opt_ PSG_EVENT_CONTEXT EventContext
+);
+
 NTSTATUS GetProcessPath(
     _In_ ULONG ProcessId,
     _Out_ PWCHAR ProcessPath,

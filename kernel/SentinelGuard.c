@@ -145,10 +145,11 @@ FLT_PREOP_CALLBACK_STATUS SentinelGuardPreOperation(
 )
 {
     UNREFERENCED_PARAMETER(FltObjects);
-    UNREFERENCED_PARAMETER(CompletionContext);
 
     PFLT_IO_PARAMETER_BLOCK iopb = Data->Iopb;
     SG_EVENT_TYPE eventType;
+    PSG_EVENT_CONTEXT eventContext = NULL;
+    NTSTATUS status;
 
     // Determine event type
     switch (iopb->MajorFunction) {
@@ -165,18 +166,23 @@ FLT_PREOP_CALLBACK_STATUS SentinelGuardPreOperation(
         if (iopb->Parameters.SetFileInformation.FileInformationClass == FileRenameInformation ||
             iopb->Parameters.SetFileInformation.FileInformationClass == FileRenameInformationEx) {
             eventType = EventFileRename;
-        } else if (iopb->Parameters.SetFileInformation.FileInformationClass == FileDispositionInformation) {
+        } else if (iopb->Parameters.SetFileInformation.FileInformationClass == FileDispositionInformation ||
+                   iopb->Parameters.SetFileInformation.FileInformationClass == FileDispositionInformationEx) {
             eventType = EventFileDelete;
         } else {
-            return FLT_PREOP_SUCCESS_WITH_CALLBACK;
+            return FLT_PREOP_SUCCESS_NO_CALLBACK;
         }
         break;
     default:
-        return FLT_PREOP_SUCCESS_WITH_CALLBACK;
+        return FLT_PREOP_SUCCESS_NO_CALLBACK;
     }
 
-    // Process event asynchronously
-    ProcessFileEvent(Data, eventType);
+    status = CaptureEventContext(Data, eventType, &eventContext);
+    if (!NT_SUCCESS(status)) {
+        return FLT_PREOP_SUCCESS_NO_CALLBACK;
+    }
+
+    *CompletionContext = eventContext;
 
     return FLT_PREOP_SUCCESS_WITH_CALLBACK;
 }
@@ -188,10 +194,22 @@ FLT_POSTOP_CALLBACK_STATUS SentinelGuardPostOperation(
     _In_ FLT_POST_OPERATION_FLAGS Flags
 )
 {
-    UNREFERENCED_PARAMETER(Data);
     UNREFERENCED_PARAMETER(FltObjects);
-    UNREFERENCED_PARAMETER(CompletionContext);
-    UNREFERENCED_PARAMETER(Flags);
+    FILE_EVENT event;
+    PSG_EVENT_CONTEXT eventContext = (PSG_EVENT_CONTEXT)CompletionContext;
+
+    if (!eventContext) {
+        return FLT_POSTOP_FINISHED_PROCESSING;
+    }
+
+    if (FlagOn(Flags, FLTFL_POST_OPERATION_DRAINING)) {
+        FreeEventContext(eventContext);
+        return FLT_POSTOP_FINISHED_PROCESSING;
+    }
+
+    BuildFileEventFromContext(Data, eventContext, &event);
+    (VOID)SendEventToUserMode(&event);
+    FreeEventContext(eventContext);
 
     return FLT_POSTOP_FINISHED_PROCESSING;
 }

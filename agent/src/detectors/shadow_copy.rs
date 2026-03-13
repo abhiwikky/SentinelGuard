@@ -29,11 +29,12 @@ impl Detector for ShadowCopyDetector {
             return 1.0;
         }
 
-        // Check for shadow copy deletion commands in process path
         let process_lower = event.process_path.to_lowercase();
-        if process_lower.contains("vssadmin") 
+        let file_lower = event.file_path.to_lowercase();
+        if process_lower.contains("vssadmin")
             || process_lower.contains("wmic")
-            || process_lower.contains("shadowcopy") {
+            || process_lower.contains("shadowcopy")
+            || file_lower.contains("system volume information") {
             return 1.0;
         }
 

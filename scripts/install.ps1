@@ -15,6 +15,37 @@ Write-Host "=================================" -ForegroundColor Green
 $ScriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $RepoRoot = Split-Path -Parent $ScriptRoot
 
+function Get-SentinelGuardDriverPackages {
+    $pnputilOutput = & pnputil.exe /enum-drivers 2>&1
+    $packages = @()
+    $current = @{}
+
+    foreach ($line in $pnputilOutput) {
+        if ($line -match '^\s*Published Name:\s*(\S+)') {
+            if ($current.Count -gt 0) {
+                $packages += [PSCustomObject]$current
+                $current = @{}
+            }
+            $current.PublishedName = $matches[1].Trim()
+        } elseif ($line -match '^\s*Original Name:\s*(.+)$') {
+            $current.OriginalName = $matches[1].Trim()
+        } elseif ($line -match '^\s*Provider Name:\s*(.+)$') {
+            $current.ProviderName = $matches[1].Trim()
+        } elseif ([string]::IsNullOrWhiteSpace($line) -and $current.Count -gt 0) {
+            $packages += [PSCustomObject]$current
+            $current = @{}
+        }
+    }
+
+    if ($current.Count -gt 0) {
+        $packages += [PSCustomObject]$current
+    }
+
+    return $packages | Where-Object {
+        $_.OriginalName -ieq "sentinelguard.inf" -or $_.ProviderName -ieq "SentinelGuard"
+    }
+}
+
 # Check for administrator privileges
 $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 if (-not $isAdmin) {
@@ -49,6 +80,7 @@ $ModelGlob = Join-Path $RepoRoot "ml\models\*.onnx"
 $ConfigToml = Join-Path $RepoRoot "agent\config\config.toml"
 $DriverSys = Join-Path $RepoRoot "kernel\build\Release\SentinelGuard.sys"
 $DriverInf = Join-Path $RepoRoot "kernel\SentinelGuard.inf"
+$DriverCat = Join-Path $RepoRoot "kernel\SentinelGuard.cat"
 
 if (-not (Test-Path $AgentExe)) {
     throw "Missing agent binary: $AgentExe. Build it with: cd agent; cargo build --release"
@@ -82,6 +114,9 @@ if (-not (Test-Path $ConfigToml)) {
 }
 if (-not (Test-Path $DriverInf)) {
     throw "Missing driver INF: $DriverInf"
+}
+if (-not $SkipDriver -and -not (Test-Path $DriverCat)) {
+    throw "Missing driver catalog: $DriverCat. Generate/sign it before install."
 }
 
 # Copy agent executable
@@ -119,26 +154,73 @@ if (-not $SkipDriver) {
     Write-Host "Installing kernel driver..." -ForegroundColor Yellow
     $driverPath = "$InstallPath\SentinelGuard.sys"
     $driverInfPath = "$InstallPath\SentinelGuard.inf"
+    $driverCatPath = "$InstallPath\SentinelGuard.cat"
     Copy-Item $DriverSys -Destination $driverPath -Force
     Copy-Item $DriverInf -Destination $driverInfPath -Force
+    Copy-Item $DriverCat -Destination $driverCatPath -Force
 
     $serviceName = "SentinelGuard"
     $existingService = Get-Service -Name $serviceName -ErrorAction SilentlyContinue
 
     if ($existingService) {
         Write-Host "Stopping existing driver service..." -ForegroundColor Yellow
+        & fltmc.exe unload $serviceName 2>$null | Out-Null
         Stop-Service -Name $serviceName -Force -ErrorAction SilentlyContinue
         sc.exe delete $serviceName | Out-Null
     }
 
-    Write-Host "Registering kernel minifilter with SetupAPI..." -ForegroundColor Yellow
-    $installInf = "DefaultInstall.NTamd64"
-    & rundll32.exe setupapi.dll,InstallHinfSection $installInf 132 $driverInfPath
+    $existingDriverPackages = Get-SentinelGuardDriverPackages
+    if ($existingDriverPackages) {
+        Write-Host "Removing stale SentinelGuard driver packages..." -ForegroundColor Yellow
+        foreach ($driverPackage in ($existingDriverPackages | Sort-Object PublishedName -Descending)) {
+            Write-Host "Deleting $($driverPackage.PublishedName) from the driver store..." -ForegroundColor Yellow
+            $deleteOutput = & pnputil.exe /delete-driver $driverPackage.PublishedName /uninstall /force 2>&1
+            if ($LASTEXITCODE -ne 0) {
+                Write-Host $deleteOutput
+                throw "Failed to delete stale driver package $($driverPackage.PublishedName)."
+            }
+        }
+    }
 
+    Write-Host "Registering kernel minifilter with SetupAPI..." -ForegroundColor Yellow
+    $signature = Get-AuthenticodeSignature $driverPath
+    if ($signature.Status -eq "NotSigned") {
+        throw "Kernel driver is not signed: $driverPath. Sign it before installation or boot Windows in testsigning mode."
+    }
+    if ($signature.Status -ne "Valid") {
+        Write-Host "WARNING: Driver signature status is $($signature.Status). $($signature.StatusMessage)" -ForegroundColor Yellow
+    }
+
+    $pnputilOutput = & pnputil.exe /add-driver $driverInfPath /install 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host $pnputilOutput
+        throw "Failed to register the kernel minifilter package with pnputil."
+    }
+
+    Write-Host "Creating kernel minifilter service via SetupAPI..." -ForegroundColor Yellow
+    & rundll32.exe setupapi.dll,InstallHinfSection DefaultInstall.NTamd64 132 $driverInfPath
+    Start-Sleep -Seconds 2
+
+    $serviceRegPath = "HKLM:\SYSTEM\CurrentControlSet\Services\$serviceName"
+    $instancesRegPath = Join-Path $serviceRegPath "Parameters\Instances"
+    if (-not (Test-Path $serviceRegPath)) {
+        Write-Host $pnputilOutput
+        throw "Kernel minifilter registration did not create $serviceRegPath."
+    }
+    if (-not (Test-Path $instancesRegPath)) {
+        Write-Host $pnputilOutput
+        throw "Kernel minifilter registration did not create $instancesRegPath."
+    }
+
+    Write-Host "Kernel minifilter registered successfully" -ForegroundColor Green
+
+    Write-Host "Loading kernel minifilter..." -ForegroundColor Yellow
+    $loadOutput = & fltmc.exe load $serviceName 2>&1
     if ($LASTEXITCODE -eq 0) {
-        Write-Host "Kernel minifilter installed successfully" -ForegroundColor Green
+        Write-Host "Kernel minifilter loaded successfully" -ForegroundColor Green
     } else {
-        Write-Host "WARNING: Failed to install kernel minifilter. Driver may need to be signed or the INF may be rejected." -ForegroundColor Red
+        Write-Host $loadOutput
+        throw "Kernel minifilter registration succeeded, but filter load failed."
     }
 }
 

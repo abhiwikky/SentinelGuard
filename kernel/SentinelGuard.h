@@ -49,6 +49,15 @@ typedef struct _FILE_EVENT {
     UCHAR EntropyPreview[16];  // First 16 bytes for entropy calculation
 } FILE_EVENT, *PFILE_EVENT;
 
+// Pre-operation context carried into post-operation completion.
+typedef struct _SG_EVENT_CONTEXT {
+    SG_EVENT_TYPE EventType;
+    ULONG ProcessId;
+    WCHAR ProcessPath[512];
+    WCHAR FilePath[1024];
+    UCHAR EntropyPreview[16];
+} SG_EVENT_CONTEXT, *PSG_EVENT_CONTEXT;
+
 // Driver context
 typedef struct _DRIVER_CONTEXT {
     PFLT_FILTER FilterHandle;

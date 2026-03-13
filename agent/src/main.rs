@@ -6,6 +6,7 @@
 use anyhow::Result;
 use std::sync::Arc;
 use tokio::sync::mpsc;
+use tokio::sync::watch;
 use tracing::{error, info};
 
 mod communication;
@@ -17,6 +18,7 @@ mod events;
 mod grpc_server;
 mod quarantine;
 mod security;
+mod service;
 mod telemetry;
 
 use communication::KernelCommunication;
@@ -25,17 +27,32 @@ use correlation::CorrelationEngine;
 use database::Database;
 use detectors::DetectorManager;
 use events::EventIngestion;
-use grpc_server::start_grpc_server;
+use grpc_server::{start_grpc_server, DashboardState};
 use quarantine::QuarantineController;
 use security::SecurityModule;
 
-#[tokio::main]
-async fn main() -> Result<()> {
-    // Initialize tracing
+pub(crate) enum ShutdownMode {
+    Console,
+    Service(watch::Receiver<bool>),
+}
+
+fn main() -> Result<()> {
     tracing_subscriber::fmt()
         .with_env_filter("sentinelguard_agent=info")
         .init();
 
+    if service::try_run_service()? {
+        return Ok(());
+    }
+
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()?;
+
+    runtime.block_on(run_agent(ShutdownMode::Console))
+}
+
+pub(crate) async fn run_agent(shutdown_mode: ShutdownMode) -> Result<()> {
     info!("SentinelGuard Agent starting...");
 
     // Load configuration
@@ -57,6 +74,9 @@ async fn main() -> Result<()> {
     let quarantine = Arc::new(QuarantineController::new(&config.quarantine_path)?);
     info!("Quarantine controller initialized");
 
+    // Shared dashboard state for gRPC/UI
+    let dashboard_state = DashboardState::new();
+
     // Initialize ML correlation engine
     let correlation_engine = Arc::new(CorrelationEngine::new(&config.ml_model_path).await?);
     info!("ML correlation engine initialized");
@@ -70,7 +90,7 @@ async fn main() -> Result<()> {
     let (detector_tx, detector_rx) = mpsc::unbounded_channel();
 
     // Start event ingestion from kernel
-    let kernel_comm = KernelCommunication::new(event_tx.clone())?;
+    let kernel_comm = KernelCommunication::new(event_tx.clone(), config.communication.clone())?;
     tokio::spawn(async move {
         if let Err(e) = kernel_comm.start().await {
             error!("Kernel communication error: {}", e);
@@ -98,26 +118,71 @@ async fn main() -> Result<()> {
     let quarantine_final = quarantine.clone();
     let db_final = db.clone();
     let config_final = config.clone();
+    let dashboard_state_final = dashboard_state.clone();
     tokio::spawn(async move {
         loop {
             tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+
+            let risk_snapshots = detector_manager.get_process_risk_snapshots().await;
+            for risk in &risk_snapshots {
+                dashboard_state_final.update_process_risk(
+                    grpc_server::sentinelguard::ProcessRisk {
+                        process_id: risk.process_id,
+                        process_path: risk.process_path.clone(),
+                        risk_score: risk.risk_score as f64,
+                        last_activity: risk.last_activity,
+                        active_detectors: risk.active_detectors.clone(),
+                    }
+                );
+            }
 
             // Get aggregated scores from detectors
             let scores = detector_manager.get_aggregated_scores().await;
 
             // Run ML correlation
-            if let Ok(ml_score) = correlation_engine_final.infer(&scores).await {
-                if ml_score > config_final.quarantine_threshold {
-                    info!("Ransomware detected! ML score: {:.2}", ml_score);
+            if scores.process_id != 0 {
+                if let Err(e) = db_final.store_detector_scores(&scores).await {
+                    error!("Failed to store detector scores: {}", e);
+                }
 
-                    // Trigger quarantine
-                    if let Err(e) = quarantine_final.quarantine_process(scores.process_id).await {
-                        error!("Quarantine failed: {}", e);
+                if let Ok(ml_score) = correlation_engine_final.infer(&scores).await {
+                    if let Err(e) = db_final
+                        .log_ml_result(scores.process_id, ml_score, scores.timestamp)
+                        .await
+                    {
+                        error!("Failed to store ML result: {}", e);
                     }
 
-                    // Log alert
-                    if let Err(e) = db_final.log_alert(&scores, ml_score).await {
-                        error!("Failed to log alert: {}", e);
+                    if ml_score > config_final.quarantine_threshold
+                        && dashboard_state_final.should_emit_alert(scores.process_id, scores.timestamp)
+                    {
+                        info!("Ransomware detected! ML score: {:.2}", ml_score);
+
+                        // Trigger quarantine
+                        if let Err(e) = quarantine_final.quarantine_process(scores.process_id).await {
+                            error!("Quarantine failed: {}", e);
+                        }
+
+                        let triggered_detectors = risk_snapshots
+                            .iter()
+                            .find(|risk| risk.process_id == scores.process_id)
+                            .map(|risk| risk.active_detectors.clone())
+                            .unwrap_or_default();
+
+                        dashboard_state_final.add_alert(grpc_server::sentinelguard::Alert {
+                            id: chrono::Utc::now().timestamp_millis(),
+                            process_id: scores.process_id,
+                            process_path: scores.process_path.clone(),
+                            ml_score: ml_score as f64,
+                            quarantined: true,
+                            timestamp: scores.timestamp,
+                            triggered_detectors,
+                        });
+
+                        // Log alert
+                        if let Err(e) = db_final.log_alert(&scores, ml_score).await {
+                            error!("Failed to log alert: {}", e);
+                        }
                     }
                 }
             }
@@ -133,7 +198,7 @@ async fn main() -> Result<()> {
         .unwrap_or_else(|_| "127.0.0.1:50051".parse().unwrap());
 
     tokio::spawn(async move {
-        if let Err(e) = start_grpc_server(db_grpc, quarantine_grpc, grpc_addr).await {
+        if let Err(e) = start_grpc_server(db_grpc, quarantine_grpc, dashboard_state, grpc_addr).await {
             error!("gRPC server error: {}", e);
         }
     });
@@ -141,9 +206,23 @@ async fn main() -> Result<()> {
 
     info!("SentinelGuard Agent running. Press Ctrl+C to stop.");
 
-    // Wait for shutdown signal
-    tokio::signal::ctrl_c().await?;
+    wait_for_shutdown(shutdown_mode).await?;
     info!("Shutting down...");
+
+    Ok(())
+}
+
+async fn wait_for_shutdown(shutdown_mode: ShutdownMode) -> Result<()> {
+    match shutdown_mode {
+        ShutdownMode::Console => {
+            tokio::signal::ctrl_c().await?;
+        }
+        ShutdownMode::Service(mut shutdown_rx) => {
+            if !*shutdown_rx.borrow() {
+                let _ = shutdown_rx.changed().await;
+            }
+        }
+    }
 
     Ok(())
 }

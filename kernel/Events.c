@@ -7,62 +7,121 @@
 #include "Communication.h"
 #include <ntstrsafe.h>
 
+#define SG_EVENT_POOL_TAG 'vgSS'
+#define SG_UNIX_EPOCH_DIFFERENCE_100NS 116444736000000000ULL
+
+static ULONGLONG QueryUnixTimestampSeconds(VOID);
+static NTSTATUS CaptureNormalizedFilePath(
+    _In_ PFLT_CALLBACK_DATA Data,
+    _Out_writes_(BufferSize) PWCHAR FilePath,
+    _In_ ULONG BufferSize
+);
+static NTSTATUS CaptureWritePreview(
+    _In_ PFLT_CALLBACK_DATA Data,
+    _Out_writes_all_(sizeof(((PFILE_EVENT)0)->EntropyPreview)) UCHAR Preview[16]
+);
+
 VOID ProcessFileEvent(
     _In_ PFLT_CALLBACK_DATA Data,
     _In_ SG_EVENT_TYPE EventType
 )
 {
-    NTSTATUS status;
+    PSG_EVENT_CONTEXT eventContext = NULL;
     FILE_EVENT event = { 0 };
-    PFLT_IO_PARAMETER_BLOCK iopb = Data->Iopb;
 
-    // Get process ID
-    event.ProcessId = FltGetRequestorProcessId(Data);
-
-    // Get process path
-    status = GetProcessPath(event.ProcessId, event.ProcessPath, sizeof(event.ProcessPath) / sizeof(WCHAR));
-    if (!NT_SUCCESS(status)) {
-        RtlZeroMemory(event.ProcessPath, sizeof(event.ProcessPath));
+    if (!NT_SUCCESS(CaptureEventContext(Data, EventType, &eventContext))) {
+        return;
     }
 
-    // Get file path
-    PFLT_FILE_NAME_INFORMATION nameInfo = NULL;
-    status = FltGetFileNameInformation(
-        Data,
-        FLT_FILE_NAME_NORMALIZED | FLT_FILE_NAME_QUERY_DEFAULT,
-        &nameInfo
+    BuildFileEventFromContext(Data, eventContext, &event);
+    (VOID)SendEventToUserMode(&event);
+    FreeEventContext(eventContext);
+}
+
+NTSTATUS CaptureEventContext(
+    _In_ PFLT_CALLBACK_DATA Data,
+    _In_ SG_EVENT_TYPE EventType,
+    _Outptr_ PSG_EVENT_CONTEXT *EventContext
+)
+{
+    NTSTATUS status;
+    PSG_EVENT_CONTEXT context;
+
+    if (!EventContext) {
+        return STATUS_INVALID_PARAMETER;
+    }
+
+    *EventContext = NULL;
+
+    context = ExAllocatePoolZero(NonPagedPoolNx, sizeof(SG_EVENT_CONTEXT), SG_EVENT_POOL_TAG);
+    if (!context) {
+        return STATUS_INSUFFICIENT_RESOURCES;
+    }
+
+    context->EventType = EventType;
+    context->ProcessId = (ULONG)(ULONG_PTR)FltGetRequestorProcessId(Data);
+
+    status = GetProcessPath(
+        context->ProcessId,
+        context->ProcessPath,
+        RTL_NUMBER_OF(context->ProcessPath)
     );
-
-    if (NT_SUCCESS(status)) {
-        status = FltParseFileNameInformation(nameInfo);
-        if (NT_SUCCESS(status)) {
-            GetFilePath(nameInfo, event.FilePath, sizeof(event.FilePath) / sizeof(WCHAR));
-        }
-        FltReleaseFileNameInformation(nameInfo);
+    if (!NT_SUCCESS(status)) {
+        RtlZeroMemory(context->ProcessPath, sizeof(context->ProcessPath));
     }
 
-    // Set event type
-    event.Type = EventType;
-
-    // Get timestamp
-    LARGE_INTEGER systemTime;
-    KeQuerySystemTime(&systemTime);
-    event.Timestamp = systemTime.QuadPart;
-
-    // Get bytes read/written
-    if (EventType == EventFileWrite || EventType == EventFileRead) {
-        event.BytesRead = (EventType == EventFileRead) ? iopb->Parameters.Read.Length : 0;
-        event.BytesWritten = (EventType == EventFileWrite) ? iopb->Parameters.Write.Length : 0;
-
-        // Calculate entropy preview for write operations
-        if (EventType == EventFileWrite && Data->Iopb->Parameters.Write.Length > 0) {
-            // Note: In production, we'd need to read the buffer, but for now we'll skip
-            // This requires careful handling of the buffer location
-        }
+    status = CaptureNormalizedFilePath(
+        Data,
+        context->FilePath,
+        RTL_NUMBER_OF(context->FilePath)
+    );
+    if (!NT_SUCCESS(status)) {
+        RtlZeroMemory(context->FilePath, sizeof(context->FilePath));
     }
 
-    // Send event to user mode
-    SendEventToUserMode(&event);
+    if (EventType == EventFileWrite) {
+        (VOID)CaptureWritePreview(Data, context->EntropyPreview);
+    }
+
+    *EventContext = context;
+    return STATUS_SUCCESS;
+}
+
+VOID BuildFileEventFromContext(
+    _In_ PFLT_CALLBACK_DATA Data,
+    _In_ PSG_EVENT_CONTEXT EventContext,
+    _Out_ PFILE_EVENT Event
+)
+{
+    ULONG_PTR transferredBytes;
+
+    RtlZeroMemory(Event, sizeof(FILE_EVENT));
+
+    Event->Type = EventContext->EventType;
+    Event->ProcessId = EventContext->ProcessId;
+    Event->Timestamp = QueryUnixTimestampSeconds();
+    Event->Result = (ULONG)Data->IoStatus.Status;
+
+    RtlCopyMemory(Event->ProcessPath, EventContext->ProcessPath, sizeof(Event->ProcessPath));
+    RtlCopyMemory(Event->FilePath, EventContext->FilePath, sizeof(Event->FilePath));
+    RtlCopyMemory(Event->EntropyPreview, EventContext->EntropyPreview, sizeof(Event->EntropyPreview));
+
+    transferredBytes = NT_SUCCESS(Data->IoStatus.Status) ? Data->IoStatus.Information : 0;
+
+    if (EventContext->EventType == EventFileRead) {
+        Event->BytesRead = (ULONGLONG)transferredBytes;
+    } else if (EventContext->EventType == EventFileWrite) {
+        Event->BytesWritten = (ULONGLONG)transferredBytes;
+    }
+}
+
+VOID FreeEventContext(
+    _In_opt_ PSG_EVENT_CONTEXT EventContext
+)
+{
+    if (EventContext) {
+        ExFreePoolWithTag(EventContext, SG_EVENT_POOL_TAG);
+    }
 }
 
 NTSTATUS GetProcessPath(
@@ -75,7 +134,7 @@ NTSTATUS GetProcessPath(
     PEPROCESS process = NULL;
     PUNICODE_STRING imagePath = NULL;
 
-    status = PsLookupProcessByProcessId((HANDLE)(ULONG_PTR)ProcessId, &process);
+    status = PsLookupProcessByProcessId(ULongToHandle(ProcessId), &process);
     if (!NT_SUCCESS(status)) {
         return status;
     }
@@ -87,10 +146,11 @@ NTSTATUS GetProcessPath(
         ProcessPath[copySize] = L'\0';
     }
 
-    if (process) {
-        ObDereferenceObject(process);
+    if (imagePath) {
+        ExFreePool(imagePath);
     }
 
+    ObDereferenceObject(process);
     return status;
 }
 
@@ -100,11 +160,13 @@ NTSTATUS GetFilePath(
     _In_ ULONG BufferSize
 )
 {
-    if (!FileNameInfo || !FileNameInfo->Name.Buffer) {
+    ULONG copySize;
+
+    if (!FileNameInfo || !FileNameInfo->Name.Buffer || BufferSize == 0) {
         return STATUS_INVALID_PARAMETER;
     }
 
-    ULONG copySize = min(BufferSize - 1, FileNameInfo->Name.Length / sizeof(WCHAR));
+    copySize = min(BufferSize - 1, FileNameInfo->Name.Length / sizeof(WCHAR));
     RtlCopyMemory(FilePath, FileNameInfo->Name.Buffer, copySize * sizeof(WCHAR));
     FilePath[copySize] = L'\0';
 
@@ -116,21 +178,19 @@ UCHAR CalculateEntropy(
     _In_ ULONG Length
 )
 {
-    if (!Data || Length == 0) {
-        return 0;
-    }
-
     ULONG frequency[256] = { 0 };
     ULONG i;
     ULONG distinctValues = 0;
 
-    // Count byte frequencies
+    if (!Data || Length == 0) {
+        return 0;
+    }
+
     for (i = 0; i < Length; i++) {
         frequency[Data[i]]++;
     }
 
-    // Use a simple diversity proxy without CRT math dependencies.
-    for (i = 0; i < 256; i++) {
+    for (i = 0; i < RTL_NUMBER_OF(frequency); i++) {
         if (frequency[i] > 0) {
             distinctValues++;
         }
@@ -139,3 +199,96 @@ UCHAR CalculateEntropy(
     return (UCHAR)min(255, distinctValues);
 }
 
+static ULONGLONG QueryUnixTimestampSeconds(VOID)
+{
+    LARGE_INTEGER systemTime;
+    ULONGLONG windowsTicks;
+
+    KeQuerySystemTimePrecise(&systemTime);
+    windowsTicks = (ULONGLONG)systemTime.QuadPart;
+
+    if (windowsTicks <= SG_UNIX_EPOCH_DIFFERENCE_100NS) {
+        return 0;
+    }
+
+    return (windowsTicks - SG_UNIX_EPOCH_DIFFERENCE_100NS) / 10000000ULL;
+}
+
+static NTSTATUS CaptureNormalizedFilePath(
+    _In_ PFLT_CALLBACK_DATA Data,
+    _Out_writes_(BufferSize) PWCHAR FilePath,
+    _In_ ULONG BufferSize
+)
+{
+    NTSTATUS status;
+    PFLT_FILE_NAME_INFORMATION nameInfo = NULL;
+
+    status = FltGetFileNameInformation(
+        Data,
+        FLT_FILE_NAME_NORMALIZED | FLT_FILE_NAME_QUERY_DEFAULT,
+        &nameInfo
+    );
+
+    if (!NT_SUCCESS(status)) {
+        return status;
+    }
+
+    status = FltParseFileNameInformation(nameInfo);
+    if (NT_SUCCESS(status)) {
+        status = GetFilePath(nameInfo, FilePath, BufferSize);
+    }
+
+    FltReleaseFileNameInformation(nameInfo);
+    return status;
+}
+
+static NTSTATUS CaptureWritePreview(
+    _In_ PFLT_CALLBACK_DATA Data,
+    _Out_writes_all_(16) UCHAR Preview[16]
+)
+{
+    NTSTATUS status = STATUS_SUCCESS;
+    PFLT_IO_PARAMETER_BLOCK iopb;
+    PMDL mdl;
+    PUCHAR buffer = NULL;
+    ULONG bytesToCopy;
+
+    RtlZeroMemory(Preview, 16);
+
+    iopb = Data->Iopb;
+    if (!iopb || iopb->MajorFunction != IRP_MJ_WRITE || iopb->Parameters.Write.Length == 0) {
+        return STATUS_SUCCESS;
+    }
+
+    mdl = iopb->Parameters.Write.MdlAddress;
+    if (!mdl && Data->RequestorMode != KernelMode) {
+        status = FltLockUserBuffer(Data);
+        if (!NT_SUCCESS(status)) {
+            return status;
+        }
+        mdl = iopb->Parameters.Write.MdlAddress;
+    }
+
+    if (mdl) {
+        buffer = MmGetSystemAddressForMdlSafe(mdl, NormalPagePriority | MdlMappingNoExecute);
+        if (!buffer) {
+            return STATUS_INSUFFICIENT_RESOURCES;
+        }
+    } else {
+        buffer = (PUCHAR)iopb->Parameters.Write.WriteBuffer;
+    }
+
+    if (!buffer) {
+        return STATUS_INVALID_USER_BUFFER;
+    }
+
+    bytesToCopy = min((ULONG)sizeof(((PFILE_EVENT)0)->EntropyPreview), iopb->Parameters.Write.Length);
+
+    __try {
+        RtlCopyMemory(Preview, buffer, bytesToCopy);
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+        status = GetExceptionCode();
+    }
+
+    return status;
+}

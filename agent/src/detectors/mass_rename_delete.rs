@@ -33,18 +33,11 @@ impl Detector for MassRenameDeleteDetector {
         }
 
         let window_seconds = self.config.rename_delete_window_seconds as i64;
-        let time_window_start = event.timestamp - window_seconds;
-
-        if stats.last_update < time_window_start {
-            return 0.0;
-        }
-
-        let total_ops = stats.file_renames + stats.file_deletes;
+        let total_ops = stats.rename_delete_count_since(event.timestamp, window_seconds);
 
         if total_ops >= self.config.rename_delete_threshold {
-            let excess = total_ops - self.config.rename_delete_threshold;
-            let score = (excess as f32 / self.config.rename_delete_threshold as f32).min(1.0);
-            return score;
+            let score = total_ops as f32 / self.config.rename_delete_threshold as f32;
+            return score.min(1.0);
         }
 
         0.0
