@@ -1,0 +1,118 @@
+# SentinelGuard Configuration
+# Default location: %ProgramData%\SentinelGuard\config.toml
+
+[agent]
+# Agent version identifier
+version = "1.0.0"
+# Log level: trace, debug, info, warn, error
+log_level = "info"
+# Maximum events to buffer before applying backpressure
+event_buffer_size = 10000
+# Health report interval in seconds
+health_report_interval_secs = 30
+
+[driver]
+# Filter Manager communication port name
+port_name = "\\SentinelGuardPort"
+# Maximum concurrent connections from driver
+max_connections = 1
+# Maximum message size in bytes from driver
+max_message_size = 65536
+
+[grpc]
+# gRPC listen address (loopback only for security)
+listen_addr = "127.0.0.1:50051"
+
+[database]
+# SQLite database path
+path = "C:\\ProgramData\\SentinelGuard\\sentinelguard.db"
+# WAL mode for concurrent reads
+wal_mode = true
+# Maximum database size in MB (0 = unlimited)
+max_size_mb = 0
+
+[detectors]
+# Time window for aggregation in seconds
+window_seconds = 60
+# Individual detector weights for aggregation
+[detectors.weights]
+entropy_spike = 0.20
+mass_write = 0.15
+mass_rename_delete = 0.15
+ransom_note = 0.15
+shadow_copy = 0.10
+process_behavior = 0.15
+extension_explosion = 0.10
+
+[detectors.entropy]
+# Shannon entropy threshold to flag as suspicious
+threshold = 7.0
+# Minimum file size to compute entropy (bytes)
+min_file_size = 1024
+
+[detectors.mass_write]
+# Number of writes in window to trigger
+count_threshold = 50
+# Time window in seconds
+window_seconds = 10
+
+[detectors.mass_rename_delete]
+# Number of rename/delete ops in window to trigger
+count_threshold = 20
+# Time window in seconds
+window_seconds = 10
+
+[detectors.ransom_note]
+# Known ransom note filename patterns (case-insensitive substrings)
+patterns = [
+    "readme.txt",
+    "how_to_decrypt",
+    "restore_files",
+    "decrypt_instructions",
+    "ransom_note",
+    "your_files_are_encrypted",
+    "read_me",
+    "help_decrypt",
+    "recovery_instructions",
+    "!readme!",
+]
+
+[detectors.shadow_copy]
+# Process names associated with shadow copy deletion
+suspicious_processes = ["vssadmin.exe", "wmic.exe", "wbadmin.exe", "bcdedit.exe", "powershell.exe"]
+
+[detectors.process_behavior]
+# Maximum unique extensions a single process should write to
+max_extensions = 15
+# Max unique directories a single process should touch
+max_directories = 50
+
+[detectors.extension_explosion]
+# If a process creates more than this many new extensions in window
+new_extension_threshold = 10
+# Time window in seconds
+window_seconds = 30
+
+[quarantine]
+# Path to quarantine helper binary
+helper_path = "C:\\Program Files\\SentinelGuard\\quarantine_helper.exe"
+# Risk score threshold to trigger automatic quarantine (0.0 - 1.0)
+auto_quarantine_threshold = 0.75
+# Maximum quarantine helper execution time in seconds
+timeout_seconds = 10
+
+[inference]
+# Path to ONNX model file
+model_path = "C:\\ProgramData\\SentinelGuard\\model.onnx"
+# Number of input features expected by the model
+num_features = 7
+# If true, fall back to weighted average when model is unavailable
+fallback_enabled = true
+
+[telemetry]
+# Log file path
+log_file = "C:\\ProgramData\\SentinelGuard\\logs\\sentinelguard.log"
+# Max log file size in MB before rotation
+max_log_size_mb = 100
+# Number of rotated log files to keep
+max_log_files = 5

@@ -1,0 +1,86 @@
+;
+; SentinelGuard Minifilter Driver INF
+;
+; This INF file installs the SentinelGuard file system minifilter driver.
+;
+
+[Version]
+Signature   = "$Windows NT$"
+Class       = "ActivityMonitor"
+ClassGuid   = {b86dff51-a31e-4bac-b3cf-e8cfe75c9fc2}
+Provider    = %ProviderString%
+DriverVer   = 03/15/2026,1.0.0.0
+CatalogFile = sentinelguard.cat
+
+[DestinationDirs]
+DefaultDestDir           = 12     ; %windir%\system32\drivers
+SentinelGuard.DriverFiles = 12
+
+[DefaultInstall.ntamd64]
+OptionDesc = %ServiceDescription%
+CopyFiles  = SentinelGuard.DriverFiles
+
+[DefaultInstall.ntamd64.Services]
+AddService = %ServiceName%,,SentinelGuard.Service
+
+[DefaultUninstall.ntamd64]
+DelFiles = SentinelGuard.DriverFiles
+
+[DefaultUninstall.ntamd64.Services]
+DelService = %ServiceName%,0x200
+
+;
+; Services Section
+;
+
+[SentinelGuard.Service]
+DisplayName    = %ServiceName%
+Description    = %ServiceDescription%
+ServiceBinary  = %12%\%DriverName%.sys
+Dependencies   = "FltMgr"
+ServiceType    = 2               ; SERVICE_FILE_SYSTEM_DRIVER
+StartType      = 3               ; SERVICE_DEMAND_START
+ErrorControl   = 1               ; SERVICE_ERROR_NORMAL
+LoadOrderGroup = "FSFilter Activity Monitor"
+AddReg         = SentinelGuard.AddRegistry
+
+;
+; Registry Settings
+;
+
+[SentinelGuard.AddRegistry]
+HKR,"Instances","DefaultInstance",0x00000000,%DefaultInstance%
+HKR,"Instances\"%Instance1.Name%,"Altitude",0x00000000,%Instance1.Altitude%
+HKR,"Instances\"%Instance1.Name%,"Flags",0x00010001,%Instance1.Flags%
+
+;
+; Copy Files
+;
+
+[SentinelGuard.DriverFiles]
+%DriverName%.sys
+
+;
+; Source Disks
+;
+
+[SourceDisksFiles]
+sentinelguard.sys = 1,,
+
+[SourceDisksNames]
+1 = %DiskId1%,,,
+
+;
+; String Section
+;
+
+[Strings]
+ProviderString       = "SentinelGuard"
+ServiceName          = "SentinelGuard"
+ServiceDescription   = "SentinelGuard Ransomware Detection Minifilter"
+DriverName           = "sentinelguard"
+DiskId1              = "SentinelGuard Installation Disk"
+DefaultInstance      = "SentinelGuard Instance"
+Instance1.Name       = "SentinelGuard Instance"
+Instance1.Altitude   = "370050"
+Instance1.Flags      = 0x0

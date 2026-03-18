@@ -1,0 +1,11 @@
+C:\Users\abhi\Desktop\SentinelGuard\agent\target\release\deps\ort_sys-a2995578e876577c.d: C:\Users\abhi\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\ort-sys-2.0.0-rc.12\src\lib.rs C:\Users\abhi\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\ort-sys-2.0.0-rc.12\src\internal\mod.rs C:\Users\abhi\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\ort-sys-2.0.0-rc.12\src\internal\dirs.rs C:\Users\abhi\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\ort-sys-2.0.0-rc.12\src\stub.rs C:\Users\abhi\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\ort-sys-2.0.0-rc.12\src\version.rs
+
+C:\Users\abhi\Desktop\SentinelGuard\agent\target\release\deps\libort_sys-a2995578e876577c.rlib: C:\Users\abhi\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\ort-sys-2.0.0-rc.12\src\lib.rs C:\Users\abhi\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\ort-sys-2.0.0-rc.12\src\internal\mod.rs C:\Users\abhi\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\ort-sys-2.0.0-rc.12\src\internal\dirs.rs C:\Users\abhi\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\ort-sys-2.0.0-rc.12\src\stub.rs C:\Users\abhi\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\ort-sys-2.0.0-rc.12\src\version.rs
+
+C:\Users\abhi\Desktop\SentinelGuard\agent\target\release\deps\libort_sys-a2995578e876577c.rmeta: C:\Users\abhi\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\ort-sys-2.0.0-rc.12\src\lib.rs C:\Users\abhi\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\ort-sys-2.0.0-rc.12\src\internal\mod.rs C:\Users\abhi\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\ort-sys-2.0.0-rc.12\src\internal\dirs.rs C:\Users\abhi\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\ort-sys-2.0.0-rc.12\src\stub.rs C:\Users\abhi\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\ort-sys-2.0.0-rc.12\src\version.rs
+
+C:\Users\abhi\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\ort-sys-2.0.0-rc.12\src\lib.rs:
+C:\Users\abhi\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\ort-sys-2.0.0-rc.12\src\internal\mod.rs:
+C:\Users\abhi\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\ort-sys-2.0.0-rc.12\src\internal\dirs.rs:
+C:\Users\abhi\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\ort-sys-2.0.0-rc.12\src\stub.rs:
+C:\Users\abhi\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\ort-sys-2.0.0-rc.12\src\version.rs:

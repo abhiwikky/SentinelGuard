@@ -1,0 +1,10 @@
+^C:\USERS\ABHI\DESKTOP\SENTINELGUARD\QUARANTINE_HELPER\BUILD\CMAKEFILES\B7243B5691026AA24AA601842F741C2B\GENERATE.STAMP.RULE
+setlocal
+"C:\Program Files\Microsoft Visual Studio\18\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" -SC:/Users/abhi/Desktop/SentinelGuard/quarantine_helper -BC:/Users/abhi/Desktop/SentinelGuard/quarantine_helper/build --check-stamp-list CMakeFiles/generate.stamp.list --vs-solution-file C:/Users/abhi/Desktop/SentinelGuard/quarantine_helper/build/SentinelGuardQuarantineHelper.sln
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd

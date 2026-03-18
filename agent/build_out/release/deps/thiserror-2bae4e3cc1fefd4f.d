@@ -1,0 +1,14 @@
+C:\Users\abhi\Desktop\SentinelGuard\agent\build_out\release\deps\thiserror-2bae4e3cc1fefd4f.d: C:\Users\abhi\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\thiserror-2.0.18\src\lib.rs C:\Users\abhi\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\thiserror-2.0.18\src\aserror.rs C:\Users\abhi\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\thiserror-2.0.18\src\display.rs C:\Users\abhi\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\thiserror-2.0.18\src\var.rs C:\Users\abhi\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\thiserror-2.0.18\src\private.rs C:\Users\abhi\Desktop\SentinelGuard\agent\build_out\release\build\thiserror-d45c016be3d5c39e\out/private.rs
+
+C:\Users\abhi\Desktop\SentinelGuard\agent\build_out\release\deps\libthiserror-2bae4e3cc1fefd4f.rlib: C:\Users\abhi\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\thiserror-2.0.18\src\lib.rs C:\Users\abhi\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\thiserror-2.0.18\src\aserror.rs C:\Users\abhi\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\thiserror-2.0.18\src\display.rs C:\Users\abhi\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\thiserror-2.0.18\src\var.rs C:\Users\abhi\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\thiserror-2.0.18\src\private.rs C:\Users\abhi\Desktop\SentinelGuard\agent\build_out\release\build\thiserror-d45c016be3d5c39e\out/private.rs
+
+C:\Users\abhi\Desktop\SentinelGuard\agent\build_out\release\deps\libthiserror-2bae4e3cc1fefd4f.rmeta: C:\Users\abhi\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\thiserror-2.0.18\src\lib.rs C:\Users\abhi\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\thiserror-2.0.18\src\aserror.rs C:\Users\abhi\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\thiserror-2.0.18\src\display.rs C:\Users\abhi\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\thiserror-2.0.18\src\var.rs C:\Users\abhi\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\thiserror-2.0.18\src\private.rs C:\Users\abhi\Desktop\SentinelGuard\agent\build_out\release\build\thiserror-d45c016be3d5c39e\out/private.rs
+
+C:\Users\abhi\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\thiserror-2.0.18\src\lib.rs:
+C:\Users\abhi\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\thiserror-2.0.18\src\aserror.rs:
+C:\Users\abhi\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\thiserror-2.0.18\src\display.rs:
+C:\Users\abhi\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\thiserror-2.0.18\src\var.rs:
+C:\Users\abhi\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\thiserror-2.0.18\src\private.rs:
+C:\Users\abhi\Desktop\SentinelGuard\agent\build_out\release\build\thiserror-d45c016be3d5c39e\out/private.rs:
+
+# env-dep:OUT_DIR=C:\\Users\\abhi\\Desktop\\SentinelGuard\\agent\\build_out\\release\\build\\thiserror-d45c016be3d5c39e\\out

@@ -1,0 +1,182 @@
+syntax = "proto3";
+
+package sentinelguard;
+
+// ─── Enumerations ───────────────────────────────────────────────────────────
+
+enum OperationType {
+  OP_UNKNOWN = 0;
+  OP_CREATE = 1;
+  OP_WRITE = 2;
+  OP_READ = 3;
+  OP_RENAME = 4;
+  OP_DELETE = 5;
+  OP_DIRECTORY_ENUM = 6;
+  OP_SHADOW_COPY_DELETE = 7;
+}
+
+enum Severity {
+  SEVERITY_UNKNOWN = 0;
+  SEVERITY_LOW = 1;
+  SEVERITY_MEDIUM = 2;
+  SEVERITY_HIGH = 3;
+  SEVERITY_CRITICAL = 4;
+}
+
+enum QuarantineStatus {
+  QS_UNKNOWN = 0;
+  QS_SUSPENDED = 1;
+  QS_RELEASED = 2;
+  QS_PROCESS_EXITED = 3;
+}
+
+// ─── Core Event Messages ────────────────────────────────────────────────────
+
+message FileEvent {
+  uint64 event_id = 1;
+  uint32 process_id = 2;
+  string process_name = 3;
+  OperationType operation = 4;
+  string file_path = 5;
+  string new_file_path = 6;      // For rename operations
+  uint64 file_size = 7;
+  double entropy = 8;            // Shannon entropy if computed
+  uint64 timestamp_ns = 9;       // Nanoseconds since Unix epoch
+  string file_extension = 10;
+}
+
+// ─── Detector Messages ──────────────────────────────────────────────────────
+
+message DetectorResult {
+  string detector_name = 1;
+  double score = 2;              // 0.0 to 1.0
+  repeated string evidence = 3;
+  uint64 timestamp_ns = 4;
+  uint32 process_id = 5;
+}
+
+message AggregatedScore {
+  uint32 process_id = 1;
+  string process_name = 2;
+  double weighted_score = 3;     // Aggregated detector score
+  double ml_score = 4;           // ONNX model output
+  double final_score = 5;        // Combined final risk score
+  repeated DetectorResult detector_results = 6;
+  uint64 window_start_ns = 7;
+  uint64 window_end_ns = 8;
+}
+
+// ─── Alert Messages ─────────────────────────────────────────────────────────
+
+message Alert {
+  uint64 alert_id = 1;
+  uint32 process_id = 2;
+  string process_name = 3;
+  Severity severity = 4;
+  double risk_score = 5;
+  string description = 6;
+  repeated DetectorResult detector_results = 7;
+  QuarantineStatus quarantine_status = 8;
+  uint64 timestamp_ns = 9;
+}
+
+// ─── Health Messages ────────────────────────────────────────────────────────
+
+message HealthStatus {
+  bool agent_running = 1;
+  bool driver_connected = 2;
+  bool model_loaded = 3;
+  bool database_connected = 4;
+  uint64 events_processed = 5;
+  uint64 alerts_generated = 6;
+  uint64 uptime_seconds = 7;
+  uint64 events_per_second = 8;
+  string agent_version = 9;
+}
+
+// ─── Process Messages ───────────────────────────────────────────────────────
+
+message ProcessRiskEntry {
+  uint32 process_id = 1;
+  string process_name = 2;
+  double current_risk_score = 3;
+  uint64 event_count = 4;
+  uint64 last_event_ns = 5;
+  bool is_quarantined = 6;
+}
+
+message QuarantinedProcess {
+  uint32 process_id = 1;
+  string process_name = 2;
+  double risk_score = 3;
+  uint64 quarantined_at_ns = 4;
+  QuarantineStatus status = 5;
+}
+
+// ─── Request / Response Messages ────────────────────────────────────────────
+
+message GetHealthRequest {}
+message GetHealthResponse {
+  HealthStatus health = 1;
+}
+
+message GetAlertsRequest {
+  uint32 limit = 1;              // Max alerts to return, 0 = all
+  uint64 since_ns = 2;           // Only alerts after this timestamp
+}
+message GetAlertsResponse {
+  repeated Alert alerts = 1;
+}
+
+message GetProcessRiskRequest {
+  uint32 limit = 1;
+}
+message GetProcessRiskResponse {
+  repeated ProcessRiskEntry processes = 1;
+}
+
+message GetQuarantinedRequest {}
+message GetQuarantinedResponse {
+  repeated QuarantinedProcess processes = 1;
+}
+
+message ReleaseProcessRequest {
+  uint32 process_id = 1;
+}
+message ReleaseProcessResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message GetDetectorLogsRequest {
+  uint32 limit = 1;
+  uint64 since_ns = 2;
+}
+message GetDetectorLogsResponse {
+  repeated DetectorResult results = 1;
+}
+
+message StreamAlertsRequest {
+  uint64 since_ns = 1;
+}
+
+// ─── Service Definition ─────────────────────────────────────────────────────
+
+service SentinelGuardService {
+  // Health check
+  rpc GetHealth(GetHealthRequest) returns (GetHealthResponse);
+
+  // Alert management
+  rpc GetAlerts(GetAlertsRequest) returns (GetAlertsResponse);
+  rpc StreamAlerts(StreamAlertsRequest) returns (stream Alert);
+
+  // Process risk overview
+  rpc GetProcessRisk(GetProcessRiskRequest) returns (GetProcessRiskResponse);
+
+  // Quarantine management
+  rpc GetQuarantined(GetQuarantinedRequest) returns (GetQuarantinedResponse);
+  rpc ReleaseProcess(ReleaseProcessRequest) returns (ReleaseProcessResponse);
+
+  // Detector logs
+  rpc GetDetectorLogs(GetDetectorLogsRequest) returns (GetDetectorLogsResponse);
+}
