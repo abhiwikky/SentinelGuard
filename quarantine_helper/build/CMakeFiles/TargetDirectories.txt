@@ -1,3 +1,0 @@
-C:/Users/abhi/Desktop/SentinelGuard/quarantine_helper/build/CMakeFiles/quarantine_helper.dir
-C:/Users/abhi/Desktop/SentinelGuard/quarantine_helper/build/CMakeFiles/ALL_BUILD.dir
-C:/Users/abhi/Desktop/SentinelGuard/quarantine_helper/build/CMakeFiles/ZERO_CHECK.dir

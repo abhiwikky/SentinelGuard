@@ -1,0 +1,92 @@
+# --- Rust ---
+/**/target/
+agent/target/
+
+# --- Node.js / UI ---
+**/node_modules/
+**/dist/
+**/build/
+ui/node_modules/
+ui/dist/
+bridge/node_modules/
+
+# --- C++ / Driver / MSVC ---
+*.obj
+*.pdb
+*.iobj
+*.ipdb
+*.lib
+*.exp
+*.ilk
+*.suo
+*.user
+*.aps
+*.ncb
+*.idb
+*.cache
+*.res
+*.tlb
+*.tli
+*.tlh
+*.bak
+*.cache
+*.swp
+*.dep
+*.props
+*.sln.docstates
+_ReSharper*/
+
+# Visual Studio / MSBuild folders
+x64/
+x86/
+Debug/
+Release/
+ARM/
+ARM64/
+.vs/
+**/Generated\ Files/
+**/obj/
+**/bin/
+
+# Driver specific
+driver/x64/
+driver/Debug/
+driver/Release/
+
+# --- CMake ---
+**/build/
+**/out/
+quarantine_helper/build/
+quarantine_helper/out/
+
+# --- Databases & Logs ---
+*.db
+*.db-shm
+*.db-wal
+*.log
+agent_stdout.log
+agent_stderr.log
+bridge_stdout.log
+bridge_stderr.log
+
+# --- OS-specific ---
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- IDEs ---
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# --- SentinelGuard Specific ---
+# Usually binaries in the artifacts folder shouldn't be versioned 
+# if they are just for deployment as the build scripts regenerate them.
+# Keep the folder, ignore its contents if desired, or leave as is.
+# artifacts/sentinelguard_agent.exe
+# artifacts/sentinelguard.sys
+
+# Agentic / Brain cache
+.gemini/
+**/brain/
