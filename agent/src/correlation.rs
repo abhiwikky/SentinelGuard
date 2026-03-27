@@ -17,6 +17,9 @@ struct ProcessWindow {
     detector_results: Vec<DetectorResult>,
     window_start_ns: u64,
     window_end_ns: u64,
+    total_events: u64,
+    ml_score: f64,
+    final_score: f64,
 }
 
 /// Correlator aggregates detector outputs per process within time windows.
@@ -58,51 +61,64 @@ impl Correlator {
             detector_results: Vec::new(),
             window_start_ns: window_start,
             window_end_ns: now_ns,
+            total_events: 0,
+            ml_score: 0.0,
+            final_score: 0.0,
         });
 
         // Evict old results outside the window
         pw.detector_results
             .retain(|r| r.timestamp_ns >= window_start);
 
-        // Add new results
+        // Add new results and increment raw event count.
+        // `results` contains one DetectorResult per active detector for the CURRENT file event.
+        // Since evaluate_all returns N results for 1 file event, we just increment by 1.
         pw.detector_results.extend(results);
         pw.window_end_ns = now_ns;
         pw.window_start_ns = window_start;
+        pw.total_events += 1;
 
         // Calculate weighted score using the latest result per detector
         let weighted_score = self.calculate_weighted_score(&pw.detector_results);
+
+        // Only include the highest-scoring result per detector for the UI.
+        // This prevents the "Process Risk Details" from being a firehose of
+        // thousands of mostly-zero results.
+        let best_per_detector = Self::best_results_per_detector(&pw.detector_results);
 
         AggregatedScore {
             process_id,
             process_name: pw.process_name.clone(),
             weighted_score,
-            ml_score: 0.0, // Set by inference module
-            final_score: weighted_score, // Updated after ML
-            detector_results: pw.detector_results.clone(),
+            ml_score: pw.ml_score, 
+            final_score: if pw.final_score > 0.0 { pw.final_score } else { weighted_score }, 
+            detector_results: best_per_detector,
             window_start_ns: pw.window_start_ns,
             window_end_ns: pw.window_end_ns,
+            total_events: pw.total_events,
         }
     }
 
-    /// Calculate weighted average score from detector results.
-    /// Uses the latest result from each detector.
+    /// Calculate weighted score from detector results.
+    /// Uses the maximum score seen for each detector in the current window.
+    ///
+    /// FIX: The old logic divided by the sum of "active" detector weights,
+    /// which diluted high scores when other detectors returned 0.
+    /// New logic: sum(score * weight) directly. Weights already sum to 1.0.
+    /// A sensitivity floor ensures any single high-confidence detector
+    /// pushes the score into alert territory.
     fn calculate_weighted_score(&self, results: &[DetectorResult]) -> f64 {
-        // Get the latest score for each detector
+        // Get the maximum score for each detector in this window
         let mut latest_scores: HashMap<&str, f64> = HashMap::new();
 
         for result in results {
             let entry = latest_scores
                 .entry(&result.detector_name)
                 .or_insert(0.0);
-            // Keep the maximum score seen in this window
             if result.score > *entry {
                 *entry = result.score;
             }
         }
-
-        // Apply weights
-        let mut weighted_sum = 0.0;
-        let mut weight_sum = 0.0;
 
         let weight_map = [
             ("entropy_spike", self.weights.entropy_spike),
@@ -114,18 +130,41 @@ impl Correlator {
             ("extension_explosion", self.weights.extension_explosion),
         ];
 
+        // Sum score * weight directly
+        let mut weighted_sum = 0.0;
         for (name, weight) in &weight_map {
             if let Some(&score) = latest_scores.get(name) {
                 weighted_sum += score * weight;
-                weight_sum += weight;
             }
         }
 
-        if weight_sum > 0.0 {
-            (weighted_sum / weight_sum).min(1.0)
-        } else {
-            0.0
+        // Boost the sum to account for the fact that a real ransomware attack
+        // typically only triggers 2-3 detectors perfectly (sum ~ 0.30 - 0.45).
+        // A multiplier of 2.5 ensures that triggering mass_write + mass_rename (0.30)
+        // results in 0.75, which crosses the auto-quarantine threshold.
+        let boosted_sum = (weighted_sum * 2.5).min(1.0);
+
+        // Sensitivity floor: if ANY single detector is very confident,
+        // ensure the overall score reflects that (e.g. at least 0.45).
+        let max_single_score = latest_scores
+            .values()
+            .copied()
+            .fold(0.0f64, f64::max);
+
+        boosted_sum.max(max_single_score * 0.45).min(1.0)
+    }
+
+    /// Reduce a list of detector results to only the highest-scoring result
+    /// per detector name. This keeps the UI clean.
+    fn best_results_per_detector(results: &[DetectorResult]) -> Vec<DetectorResult> {
+        let mut best: HashMap<&str, &DetectorResult> = HashMap::new();
+        for r in results {
+            let entry = best.entry(&r.detector_name).or_insert(r);
+            if r.score > entry.score {
+                *entry = r;
+            }
         }
+        best.into_values().filter(|r| r.score > 0.0).cloned().collect()
     }
 
     /// Get current risk scores for all tracked processes
@@ -140,15 +179,17 @@ impl Correlator {
             .iter()
             .map(|(&pid, pw)| {
                 let weighted_score = self.calculate_weighted_score(&pw.detector_results);
+                let best_per_detector = Self::best_results_per_detector(&pw.detector_results);
                 AggregatedScore {
                     process_id: pid,
                     process_name: pw.process_name.clone(),
                     weighted_score,
-                    ml_score: 0.0,
-                    final_score: weighted_score,
-                    detector_results: pw.detector_results.clone(),
+                    ml_score: pw.ml_score,
+                    final_score: if pw.final_score > 0.0 { pw.final_score } else { weighted_score },
+                    detector_results: best_per_detector,
                     window_start_ns: pw.window_start_ns,
                     window_end_ns: now_ns,
+                    total_events: pw.total_events,
                 }
             })
             .collect()
@@ -157,6 +198,14 @@ impl Correlator {
     /// Remove a process from tracking
     pub fn remove_process(&self, process_id: u32) {
         self.windows.write().remove(&process_id);
+    }
+
+    /// Update the ML and final score for a process (called by inference pipeline)
+    pub fn update_scores(&self, process_id: u32, ml_score: f64, final_score: f64) {
+        if let Some(mut pw) = self.windows.write().get_mut(&process_id) {
+            pw.ml_score = ml_score;
+            pw.final_score = final_score;
+        }
     }
 
     /// Clean up expired windows
@@ -203,7 +252,18 @@ mod tests {
         let correlator = Correlator::new(test_weights(), 60);
         let results = vec![DetectorResult::new("entropy_spike", 0.8, vec![], 100)];
         let score = correlator.add_results(100, "test.exe", results);
-        assert!((score.weighted_score - 0.8).abs() < 0.01);
+        // New scoring: weighted_sum = 0.16. Boosted (x2.5) = 0.40. Floor = 0.36. Max = 0.40.
+        assert!((score.weighted_score - 0.40).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_sensitivity_floor_prevents_dilution() {
+        // A single detector at max score should still produce a meaningful risk
+        let correlator = Correlator::new(test_weights(), 60);
+        let results = vec![DetectorResult::new("mass_write", 1.0, vec![], 100)];
+        let score = correlator.add_results(100, "ransim.exe", results);
+        // max(1.0 * 0.15, 1.0 * 0.45) = 0.45 — Medium risk, enough for ML inference
+        assert!(score.weighted_score >= 0.45);
     }
 
     #[test]

@@ -29,12 +29,20 @@ use crate::quarantine::QuarantineManager;
 use crate::telemetry::{init_telemetry, Metrics};
 
 use anyhow::{Context, Result};
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::sync::{broadcast, mpsc, watch};
-use tracing::{error, info, warn};
+use tracing::{debug, error, info, warn};
+
+/// Minimum heuristic score to trigger ML inference.
+/// Events scoring below this skip the expensive ONNX model entirely.
+const ML_INFERENCE_THRESHOLD: f64 = 0.1;
+
+/// Deduplication window: skip identical (pid, path, op) events within this period.
+const DEDUP_WINDOW_NS: u64 = 50_000_000; // 50ms
 
 const DEFAULT_CONFIG_PATH: &str = r"C:\ProgramData\SentinelGuard\config.toml";
 
@@ -171,22 +179,35 @@ async fn main() -> Result<()> {
     // Quarantine threshold
     let quarantine_threshold = config.quarantine.auto_quarantine_threshold;
 
-    // Setup dedicated database writer thread to prevent blocking OS I/O
+    // Setup dedicated database writer thread to prevent blocking OS I/O.
+    // FIX: use proper blocking recv instead of busy-spin (try_recv + sleep).
     let (db_tx, mut db_rx) = mpsc::channel(100_000);
     let writer_db = database.clone();
     let mut db_shutdown = shutdown_rx.clone();
+    let db_rt_handle = tokio::runtime::Handle::current();
     tokio::task::spawn_blocking(move || {
         loop {
-            // Non-blocking drain
-            while let Ok(event) = db_rx.try_recv() {
-                if let Err(e) = writer_db.insert_event(&event) {
-                    warn!("Failed to persist event (background): {:#}", e);
+            // Block until an event arrives OR the channel closes.
+            // This is the proper way to drain an mpsc from a blocking thread.
+            match db_rt_handle.block_on(async {
+                tokio::select! {
+                    event = db_rx.recv() => event,
+                    _ = db_shutdown.changed() => None,
                 }
+            }) {
+                Some(event) => {
+                    if let Err(e) = writer_db.insert_event(&event) {
+                        warn!("Failed to persist event (background): {:#}", e);
+                    }
+                    // Drain any additional buffered events without re-entering async
+                    while let Ok(event) = db_rx.try_recv() {
+                        if let Err(e) = writer_db.insert_event(&event) {
+                            warn!("Failed to persist event (background): {:#}", e);
+                        }
+                    }
+                }
+                None => break, // channel closed or shutdown
             }
-            if db_shutdown.has_changed().unwrap_or(false) {
-                break;
-            }
-            std::thread::sleep(std::time::Duration::from_millis(10));
         }
     });
 
@@ -205,6 +226,12 @@ async fn main() -> Result<()> {
     let mut process_shutdown = shutdown_rx.clone();
 
     tokio::spawn(async move {
+        // Event deduplication map: (process_id, file_path_hash, operation) -> last_timestamp_ns
+        let mut dedup_map: HashMap<(u32, u64, u32), u64> = HashMap::new();
+        // Alert deduplication map to prevent spamming the UI for the same process
+        let mut alerted_pids: HashMap<u32, u64> = HashMap::new();
+        let mut dedup_cleanup_counter: u64 = 0;
+
         loop {
             tokio::select! {
                 Some(event) = event_rx.recv() => {
@@ -213,6 +240,35 @@ async fn main() -> Result<()> {
                         warn!("Invalid event: {}", e);
                         processing_metrics.increment_events_dropped();
                         continue;
+                    }
+
+                    // Event deduplication: skip identical (pid, path, op) within 50ms.
+                    // This collapses write-storms from apps that update the same file rapidly.
+                    let path_hash = {
+                        use std::hash::{Hash, Hasher};
+                        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+                        event.file_path.hash(&mut hasher);
+                        hasher.finish()
+                    };
+                    let dedup_key = (event.process_id, path_hash, event.operation as u32);
+                    if let Some(&last_ts) = dedup_map.get(&dedup_key) {
+                        if event.timestamp_ns.saturating_sub(last_ts) < DEDUP_WINDOW_NS {
+                            processing_metrics.increment_events_dropped();
+                            debug!("Dedup: skipping rapid duplicate event for PID {} on {}",
+                                event.process_id, event.file_path);
+                            continue;
+                        }
+                    }
+                    dedup_map.insert(dedup_key, event.timestamp_ns);
+
+                    // Periodic cleanup of dedup map to prevent unbounded growth
+                    dedup_cleanup_counter += 1;
+                    if dedup_cleanup_counter % 10_000 == 0 {
+                        let cutoff = event.timestamp_ns.saturating_sub(DEDUP_WINDOW_NS * 20);
+                        dedup_map.retain(|_, ts| *ts > cutoff);
+
+                        let alert_cutoff = event.timestamp_ns.saturating_sub(60_000_000_000); // 60s
+                        alerted_pids.retain(|_, ts| *ts > alert_cutoff);
                     }
 
                     processing_metrics.increment_events_processed();
@@ -230,9 +286,20 @@ async fn main() -> Result<()> {
                         detector_results,
                     );
 
-                    // Run ML inference
-                    if let Err(e) = processing_inf.predict(&mut aggregated) {
-                        warn!("ML inference error: {}", e);
+                    // Conditional ML inference: only run the expensive ONNX model
+                    // when heuristic detectors found something suspicious.
+                    // This eliminates ~99% of ML invocations.
+                    if aggregated.weighted_score > ML_INFERENCE_THRESHOLD {
+                        if let Err(e) = processing_inf.predict(&mut aggregated) {
+                            warn!("ML inference error: {}", e);
+                        } else {
+                            // Write the ML results back to the Correlator so the API can serve them
+                            processing_corr.update_scores(
+                                event.process_id,
+                                aggregated.ml_score,
+                                aggregated.final_score,
+                            );
+                        }
                     }
 
                     // Check if quarantine threshold is exceeded
@@ -242,6 +309,14 @@ async fn main() -> Result<()> {
                             .unwrap_or_default()
                             .as_nanos() as u64;
 
+                        // Only generate one alert per minute per PID to prevent UI/DB spam
+                        let should_alert = match alerted_pids.get(&event.process_id) {
+                            Some(&last_alert_ns) => now_ns.saturating_sub(last_alert_ns) > 60_000_000_000,
+                            None => true,
+                        };
+
+                        if should_alert {
+                            alerted_pids.insert(event.process_id, now_ns);
                         let severity = Severity::from(aggregated.final_score);
 
                         let alert = Alert {
@@ -316,6 +391,7 @@ async fn main() -> Result<()> {
                                 }
                             }
                         });
+                        }
                     }
                 }
                 _ = process_shutdown.changed() => {

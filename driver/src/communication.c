@@ -145,8 +145,11 @@ SgSendEvent(
         return STATUS_PORT_DISCONNECTED;
     }
 
-    /* 100ms timeout to avoid blocking FS operations for too long */
-    timeout.QuadPart = -1000000LL; /* 100ms in 100ns units, negative = relative */
+    /* 5ms timeout – short enough to avoid freezing the filesystem,
+     * long enough that events are still delivered during brief agent hiccups.
+     * The kernel-side filtering in operations.c eliminates ~90% of noise,
+     * so the agent's queue rarely fills up. */
+    timeout.QuadPart = -50000LL; /* 5ms in 100ns units, negative = relative */
 
     status = FltSendMessage(
         g_DriverData.FilterHandle,

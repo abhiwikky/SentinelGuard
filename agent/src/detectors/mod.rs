@@ -72,7 +72,8 @@ impl DetectorState {
             .unwrap_or(0)
     }
 
-    /// Add a string to a set (returns current count of unique strings)
+    /// Add a string to a set (returns current count of unique strings).
+    /// Capped at 5,000 entries per process to prevent unbounded memory growth.
     pub fn add_to_set(&mut self, detector: &str, process_id: u32, value: String) -> usize {
         let set = self
             .string_sets
@@ -80,6 +81,10 @@ impl DetectorState {
             .or_default()
             .entry(process_id)
             .or_default();
+        if set.len() >= 5_000 {
+            // Cap reached — don't add more, just return current count
+            return set.len();
+        }
         if !set.contains(&value) {
             set.push(value);
         }
@@ -93,14 +98,21 @@ impl DetectorState {
             .and_then(|m| m.get(&process_id))
     }
 
-    /// Add a timestamp
+    /// Add a timestamp.
+    /// Capped at 10,000 per process — when exceeded, the oldest half is drained.
     pub fn add_timestamp(&mut self, detector: &str, process_id: u32, ts: u64) {
-        self.timestamps
+        let timestamps = self
+            .timestamps
             .entry(detector.to_string())
             .or_default()
             .entry(process_id)
-            .or_default()
-            .push(ts);
+            .or_default();
+        timestamps.push(ts);
+        // Prevent unbounded growth: trim oldest half when over 10k
+        if timestamps.len() > 10_000 {
+            let drain_to = timestamps.len() / 2;
+            timestamps.drain(..drain_to);
+        }
     }
 
     /// Get timestamps for a detector/process

@@ -36,16 +36,22 @@ impl Detector for ExtensionExplosionDetector {
             return DetectorResult::new(self.name(), 0.0, vec![], event.process_id);
         }
 
-        // Determine the extension to check
-        let extension = if event.operation == OperationType::Rename {
-            // For renames, check the new file path extension
+        // Determine the extension to check.
+        // For renames, extract from the new path; otherwise use the pre-parsed extension.
+        // We avoid cloning the extension string unless we actually need to insert it.
+        let extension: String = if event.operation == OperationType::Rename {
             event
                 .new_file_path
                 .as_ref()
                 .and_then(|p| p.rsplit('.').next())
                 .unwrap_or("")
-                .to_lowercase()
+                .to_ascii_lowercase()
         } else {
+            // file_extension is already lowercase from the driver/parser,
+            // so we can borrow it directly with minimal cost.
+            if event.file_extension.is_empty() || event.file_extension.len() > 20 {
+                return DetectorResult::new(self.name(), 0.0, vec![], event.process_id);
+            }
             event.file_extension.clone()
         };
 
@@ -54,7 +60,7 @@ impl Detector for ExtensionExplosionDetector {
         }
 
         // Track unique extensions per process
-        let unique_count = state.add_to_set(self.name(), event.process_id, extension.clone());
+        let unique_count = state.add_to_set(self.name(), event.process_id, extension);
 
         // Track timestamps for windowing
         state.add_timestamp(self.name(), event.process_id, event.timestamp_ns);

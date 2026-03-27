@@ -103,6 +103,9 @@ message ProcessRiskEntry {
   uint64 event_count = 4;
   uint64 last_event_ns = 5;
   bool is_quarantined = 6;
+  repeated DetectorResult detector_results = 7;
+  double weighted_score = 8;
+  double ml_score = 9;
 }
 
 message QuarantinedProcess {

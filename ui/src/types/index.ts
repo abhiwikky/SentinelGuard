@@ -37,6 +37,9 @@ export interface ProcessRiskEntry {
   eventCount: string;
   lastEventNs: string;
   isQuarantined: boolean;
+  detectorResults: DetectorResult[];
+  weightedScore: number;
+  mlScore: number;
 }
 
 export interface QuarantinedProcess {

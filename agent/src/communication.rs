@@ -193,6 +193,13 @@ impl DriverConnection {
             return None;
         }
 
+        // User-mode process exclusion: skip known-safe OS background processes.
+        // This is a fast check that prevents noise from flooding the pipeline.
+        if is_excluded_process(&process_name) {
+            debug!("Skipping event from excluded process: {}", process_name);
+            return None;
+        }
+
         // Convert Windows FILETIME to nanoseconds since Unix epoch
         // Windows FILETIME is 100ns intervals since Jan 1, 1601
         // Unix epoch offset = 116444736000000000 (100ns units)
@@ -225,6 +232,44 @@ impl DriverConnection {
             file_extension,
         })
     }
+}
+
+/// Check if a process name matches the exclusion list.
+/// Extracts the executable basename and compares case-insensitively.
+fn is_excluded_process(process_name: &str) -> bool {
+    // Known-safe OS background processes that generate massive I/O noise.
+    // These are system processes that never exhibit ransomware behavior.
+    const EXCLUDED: &[&str] = &[
+        "searchindexer.exe",
+        "searchprotocolhost.exe",
+        "searchfilterhost.exe",
+        "tiworker.exe",
+        "trustedinstaller.exe",
+        "csrss.exe",
+        "smss.exe",
+        "lsass.exe",
+        "services.exe",
+        "msmdsrv.exe",
+        "compattelrunner.exe",
+        "audiodg.exe",
+        "fontdrvhost.exe",
+        "registry",               // Registry process
+        "mpcmdrun.exe",           // Windows Defender scan
+        "msmpeng.exe",            // Windows Defender engine
+        "sentinel_agent.exe",     // Our own agent (avoid feedback loop)
+        "sentinelguard_agent.exe",
+    ];
+
+    // Extract the executable name from a full path like
+    // "\Device\HarddiskVolume3\Windows\System32\svchost.exe"
+    let exe_name = process_name
+        .rsplit('\\')
+        .next()
+        .unwrap_or(process_name);
+
+    let exe_lower = exe_name.to_ascii_lowercase();
+
+    EXCLUDED.iter().any(|&excl| exe_lower == excl)
 }
 
 /// Convert a null-terminated wide character buffer to a Rust String

@@ -91,8 +91,14 @@ impl InferenceEngine {
             match self.run_inference(&mut session, &features) {
                 Ok(ml_score) => {
                     score.ml_score = ml_score;
-                    score.final_score =
-                        (score.weighted_score * 0.4 + score.ml_score * 0.6).min(1.0);
+                    // Blend heuristic and ML, but ensure a high-confidence ML score
+                    // can override a diluted heuristic score, AND a high-confidence 
+                    // heuristic score isn't completely suppressed by an uncertain ML model.
+                    let blended = score.weighted_score * 0.4 + score.ml_score * 0.6;
+                    score.final_score = blended
+                        .max(score.ml_score * 0.9)
+                        .max(score.weighted_score * 0.85)
+                        .min(1.0);
                 }
                 Err(e) => {
                     error!("ML inference failed: {}. Using weighted score.", e);
@@ -192,6 +198,7 @@ mod tests {
             detector_results,
             window_start_ns: 0,
             window_end_ns: 0,
+            total_events: 1,
         }
     }
 

@@ -123,6 +123,12 @@ pub struct ProcessRiskEntry {
     pub last_event_ns: u64,
     #[prost(bool, tag = "6")]
     pub is_quarantined: bool,
+    #[prost(message, repeated, tag = "7")]
+    pub detector_results: ::prost::alloc::vec::Vec<DetectorResult>,
+    #[prost(double, tag = "8")]
+    pub weighted_score: f64,
+    #[prost(double, tag = "9")]
+    pub ml_score: f64,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]

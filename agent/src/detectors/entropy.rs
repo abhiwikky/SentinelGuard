@@ -63,10 +63,11 @@ impl Detector for EntropyDetector {
         let entropy = event.entropy;
 
         // Track the highest entropy per process
-        let key = format!("{}_max_entropy", self.name());
+        // Use a static key to avoid per-event format!() allocation
+        const MAX_ENTROPY_KEY: &str = "entropy_spike_max_entropy";
         let current_max = state
             .accumulators
-            .entry(key.clone())
+            .entry(MAX_ENTROPY_KEY.to_string())
             .or_default()
             .entry(event.process_id)
             .or_insert(0.0);
@@ -108,8 +109,8 @@ impl Detector for EntropyDetector {
         if let Some(map) = state.counters.get_mut(self.name()) {
             map.remove(&process_id);
         }
-        let key = format!("{}_max_entropy", self.name());
-        if let Some(map) = state.accumulators.get_mut(&key) {
+        const MAX_ENTROPY_KEY: &str = "entropy_spike_max_entropy";
+        if let Some(map) = state.accumulators.get_mut(MAX_ENTROPY_KEY) {
             map.remove(&process_id);
         }
     }

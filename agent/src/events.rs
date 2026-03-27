@@ -180,6 +180,7 @@ pub struct AggregatedScore {
     pub detector_results: Vec<DetectorResult>,
     pub window_start_ns: u64,
     pub window_end_ns: u64,
+    pub total_events: u64,
 }
 
 /// Alert generated when risk threshold is exceeded

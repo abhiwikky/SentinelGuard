@@ -35,26 +35,26 @@ impl Detector for ProcessBehaviorDetector {
             return DetectorResult::new(self.name(), 0.0, vec![], event.process_id);
         }
 
-        // Track unique extensions
-        let ext_key = format!("{}_extensions", self.name());
+        // Track unique extensions (static key avoids per-event format!() allocation)
+        const EXT_KEY: &str = "process_behavior_extensions";
         if !event.file_extension.is_empty() {
-            state.add_to_set(&ext_key, event.process_id, event.file_extension.clone());
+            state.add_to_set(EXT_KEY, event.process_id, event.file_extension.clone());
         }
 
         // Track unique directories
-        let dir_key = format!("{}_directories", self.name());
+        const DIR_KEY: &str = "process_behavior_directories";
         let dir = event.directory().to_string();
         if !dir.is_empty() {
-            state.add_to_set(&dir_key, event.process_id, dir);
+            state.add_to_set(DIR_KEY, event.process_id, dir);
         }
 
         let ext_count = state
-            .get_set(&ext_key, event.process_id)
+            .get_set(EXT_KEY, event.process_id)
             .map(|s| s.len())
             .unwrap_or(0);
 
         let dir_count = state
-            .get_set(&dir_key, event.process_id)
+            .get_set(DIR_KEY, event.process_id)
             .map(|s| s.len())
             .unwrap_or(0);
 
@@ -95,12 +95,12 @@ impl Detector for ProcessBehaviorDetector {
     }
 
     fn reset_process_state(&self, state: &mut DetectorState, process_id: u32) {
-        let ext_key = format!("{}_extensions", self.name());
-        let dir_key = format!("{}_directories", self.name());
-        if let Some(map) = state.string_sets.get_mut(&ext_key) {
+        const EXT_KEY: &str = "process_behavior_extensions";
+        const DIR_KEY: &str = "process_behavior_directories";
+        if let Some(map) = state.string_sets.get_mut(EXT_KEY) {
             map.remove(&process_id);
         }
-        if let Some(map) = state.string_sets.get_mut(&dir_key) {
+        if let Some(map) = state.string_sets.get_mut(DIR_KEY) {
             map.remove(&process_id);
         }
     }

@@ -187,9 +187,16 @@ impl SentinelGuardService for SentinelGuardServiceImpl {
                 process_id: s.process_id,
                 process_name: s.process_name.clone(),
                 current_risk_score: s.final_score,
-                event_count: s.detector_results.len() as u64,
+                event_count: s.total_events,
                 last_event_ns: s.window_end_ns,
                 is_quarantined: quarantined_pids.contains(&s.process_id),
+                detector_results: s
+                    .detector_results
+                    .iter()
+                    .map(detector_result_to_proto)
+                    .collect(),
+                weighted_score: s.weighted_score,
+                ml_score: s.ml_score,
             })
             .collect();
 
