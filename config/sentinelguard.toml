@@ -10,6 +10,17 @@ log_level = "info"
 event_buffer_size = 10000
 # Health report interval in seconds
 health_report_interval_secs = 30
+# Known-safe processes to skip during detection (case-insensitive)
+process_whitelist = [
+    "svchost.exe",
+    "MsMpEng.exe",
+    "SearchIndexer.exe",
+    "csrss.exe",
+    "lsass.exe",
+    "services.exe",
+    "smss.exe",
+    "System",
+]
 
 [driver]
 # Filter Manager communication port name

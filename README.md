@@ -56,6 +56,10 @@ SentinelGuard combines a kernel minifilter driver for real-time file-system tele
 6. `cd bridge && npm install`
 7. `powershell -ExecutionPolicy Bypass -File scripts\install.ps1`
 
+> [!IMPORTANT]
+> The automated scripts (`install.ps1` and `build.ps1`) do not continually sync your latest configuration or ML model to prevent accidental overwrites of production settings. 
+> Every time you retrain the ML model (`model.onnx`) or modify the default config (`sentinelguard.toml`), you must manually copy them to `C:\ProgramData\SentinelGuard\` and restart the agent.
+
 ## Requirements
 
 - Windows 10/11 x64

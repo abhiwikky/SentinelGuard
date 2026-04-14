@@ -156,8 +156,8 @@ impl InferenceEngine {
 
         // The model outputs a probability for the "ransomware" class
         let output = outputs
-            .get("output")
-            .or_else(|| outputs.get("probabilities"))
+            .get("probabilities")
+            .or_else(|| outputs.get("output"))
             .ok_or_else(|| anyhow::anyhow!("Model output not found"))?;
 
         let (_shape, data) = output

@@ -59,11 +59,16 @@ if ($TestName -eq "ExtensionExplosion" -or $TestName -eq "All") {
 
 # 5. High Entropy Test (Threshold: > 7.0 entropy on files >= 1024 bytes)
 if ($TestName -eq "HighEntropy" -or $TestName -eq "All") {
-    Write-Info "Starting HighEntropy test (writing completely random bytes)..."
-    # Create 4KB of highly random bytes (high Shannon entropy)
-    $rand = New-Object Byte[] 4096
-    (New-Object Security.Cryptography.RNGCryptoServiceProvider).GetBytes($rand)
-    [System.IO.File]::WriteAllBytes("$TestDir\high_entropy.dat", $rand)
+    Write-Info "Starting HighEntropy test (writing 10 high-entropy files across directories)..."
+    $rand = New-Object Security.Cryptography.RNGCryptoServiceProvider
+    for ($i = 0; $i -lt 10; $i++) {
+        $subdir = "$TestDir\entropy_dir_$i"
+        New-Item -ItemType Directory -Path $subdir -Force | Out-Null
+        $bytes = New-Object Byte[] 4096
+        $rand.GetBytes($bytes)
+        [System.IO.File]::WriteAllBytes("$subdir\encrypted_$i.dat", $bytes)
+    }
+    $rand.Dispose()
     Write-Success "HighEntropy test complete."
     if ($TestName -eq "All") { Start-Sleep -Seconds 2 }
 }

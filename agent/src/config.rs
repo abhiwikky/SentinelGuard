@@ -26,6 +26,10 @@ pub struct AgentConfig {
     pub log_level: String,
     pub event_buffer_size: usize,
     pub health_report_interval_secs: u64,
+    /// Processes to skip during detection (known-safe system processes).
+    /// Matched case-insensitively against the executable name only.
+    #[serde(default)]
+    pub process_whitelist: Vec<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -204,6 +208,7 @@ version = "1.0.0"
 log_level = "info"
 event_buffer_size = 10000
 health_report_interval_secs = 30
+process_whitelist = ["svchost.exe", "MsMpEng.exe", "SearchIndexer.exe", "csrss.exe", "lsass.exe", "services.exe", "smss.exe", "System"]
 
 [driver]
 port_name = "\\SentinelGuardPort"

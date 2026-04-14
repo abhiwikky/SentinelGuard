@@ -38,8 +38,8 @@ def generate_synthetic_data(n_samples: int = 10000, seed: int = 42) -> tuple:
     Generate synthetic training data with realistic distributions.
 
     Ransomware samples: Multiple detectors fire with correlated high scores.
-    Benign samples: Occasional single-detector spikes (e.g., legitimate
-    encryption tools will trigger entropy_spike alone).
+    Benign samples: Mostly idle (all zeros) with occasional single-detector
+    spikes for specific tool categories (compression, build, backup).
 
     Returns:
         X: Feature matrix of shape (n_samples, 7)
@@ -75,20 +75,52 @@ def generate_synthetic_data(n_samples: int = 10000, seed: int = 42) -> tuple:
     ransomware_base = np.clip(ransomware_base, 0.0, 1.0)
 
     # --- Benign samples ---
-    # Mostly low scores with occasional single-spike
-    benign_base = rng.beta(1.5, 8, size=(n_half, NUM_FEATURES))
+    # Start from ALL ZEROS — this is realistic because most processes
+    # (svchost.exe, csrss.exe, idle services) produce zero detector scores.
+    benign_base = np.zeros((n_half, NUM_FEATURES), dtype=np.float64)
 
-    # Some benign processes have high entropy (compression tools)
-    entropy_noise = rng.random(n_half) < 0.1
-    benign_base[entropy_noise, 0] = rng.beta(6, 2, size=entropy_noise.sum())
+    # ~50% of benign samples stay at pure zero (idle/system processes)
+    # ~30% get very low background noise (active but harmless processes)
+    # ~20% get specific tool profiles (compression, build, backup, etc.)
 
-    # Build tools may write many files
-    write_noise = rng.random(n_half) < 0.08
-    benign_base[write_noise, 1] = rng.beta(4, 3, size=write_noise.sum())
+    # --- Light-activity processes (browsers, editors): 30% ---
+    light_mask = (rng.random(n_half) >= 0.50) & (rng.random(n_half) < 0.80)
+    n_light = light_mask.sum()
+    if n_light > 0:
+        benign_base[light_mask] = rng.beta(1.2, 12, size=(n_light, NUM_FEATURES))
 
-    # Backup software touches many extensions
-    ext_noise = rng.random(n_half) < 0.05
-    benign_base[ext_noise, 5] = rng.beta(4, 3, size=ext_noise.sum())
+    # --- Compression / encryption tools: ~5% with high entropy only ---
+    entropy_mask = rng.random(n_half) < 0.05
+    n_entropy = entropy_mask.sum()
+    if n_entropy > 0:
+        benign_base[entropy_mask, 0] = rng.beta(6, 2, size=n_entropy)
+        # Compression tools may also write moderately
+        benign_base[entropy_mask, 1] = rng.beta(2, 5, size=n_entropy)
+
+    # --- Build tools (compilers, bundlers): ~5% with mass writes ---
+    build_mask = rng.random(n_half) < 0.05
+    n_build = build_mask.sum()
+    if n_build > 0:
+        benign_base[build_mask, 1] = rng.beta(5, 3, size=n_build)
+        # Build tools touch several extensions (.o, .obj, .d, .pdb, etc.)
+        benign_base[build_mask, 5] = rng.beta(3, 4, size=n_build)
+        benign_base[build_mask, 6] = rng.beta(2, 5, size=n_build)
+
+    # --- Backup / sync software: ~3% with broad directory + extension access ---
+    backup_mask = rng.random(n_half) < 0.03
+    n_backup = backup_mask.sum()
+    if n_backup > 0:
+        benign_base[backup_mask, 1] = rng.beta(4, 3, size=n_backup)
+        benign_base[backup_mask, 5] = rng.beta(5, 3, size=n_backup)
+        benign_base[backup_mask, 6] = rng.beta(3, 4, size=n_backup)
+
+    # --- Installers: ~3% with mass writes + renames ---
+    installer_mask = rng.random(n_half) < 0.03
+    n_installer = installer_mask.sum()
+    if n_installer > 0:
+        benign_base[installer_mask, 1] = rng.beta(5, 2, size=n_installer)
+        benign_base[installer_mask, 2] = rng.beta(3, 4, size=n_installer)
+        benign_base[installer_mask, 5] = rng.beta(3, 5, size=n_installer)
 
     benign_base = np.clip(benign_base, 0.0, 1.0)
 

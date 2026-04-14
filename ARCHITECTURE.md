@@ -182,6 +182,14 @@ SG_EVENT { StructSize, Operation, ProcessId, Timestamp, FileSize, FilePath[520],
 | 6 | `cd bridge && npm install` | package.json | `node_modules/` |
 | 7 | `powershell -ExecutionPolicy Bypass -File scripts\install.ps1` | All artifacts | Installed system |
 
+> **IMPORTANT: Deployment Note** 
+> The `install.ps1` and `build.ps1` scripts do **not** automatically sync development changes to the ML model or the configuration file over to the system runtime directory.
+> 
+> *   **ML Model:** If you retrain the model (`cd ml && python train.py`), you must manually copy `ml\model.onnx` to `C:\ProgramData\SentinelGuard\model.onnx`.
+> *   **Configuration:** If you modify `config\sentinelguard.toml`, you must manually copy it to `C:\ProgramData\SentinelGuard\config.toml`.
+> 
+> Restart the agent (`Stop-Process -Name sentinelguard_agent -Force` or restart the service) for changes to take effect.
+
 ## 7. Security Model
 
 - **Trust boundary**: Kernel ↔ User mode via Filter Manager (admin-only port)

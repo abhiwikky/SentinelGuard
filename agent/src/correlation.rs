@@ -140,18 +140,18 @@ impl Correlator {
 
         // Boost the sum to account for the fact that a real ransomware attack
         // typically only triggers 2-3 detectors perfectly (sum ~ 0.30 - 0.45).
-        // A multiplier of 2.5 ensures that triggering mass_write + mass_rename (0.30)
-        // results in 0.75, which crosses the auto-quarantine threshold.
-        let boosted_sum = (weighted_sum * 2.5).min(1.0);
+        // A multiplier of 1.8 ensures that triggering 2-3 detectors simultaneously
+        // reaches quarantine threshold without inflating single-detector benign noise.
+        let boosted_sum = (weighted_sum * 1.8).min(1.0);
 
         // Sensitivity floor: if ANY single detector is very confident,
-        // ensure the overall score reflects that (e.g. at least 0.45).
+        // ensure the overall score reflects that (e.g. at least 0.35).
         let max_single_score = latest_scores
             .values()
             .copied()
             .fold(0.0f64, f64::max);
 
-        boosted_sum.max(max_single_score * 0.45).min(1.0)
+        boosted_sum.max(max_single_score * 0.35).min(1.0)
     }
 
     /// Reduce a list of detector results to only the highest-scoring result
@@ -252,8 +252,8 @@ mod tests {
         let correlator = Correlator::new(test_weights(), 60);
         let results = vec![DetectorResult::new("entropy_spike", 0.8, vec![], 100)];
         let score = correlator.add_results(100, "test.exe", results);
-        // New scoring: weighted_sum = 0.16. Boosted (x2.5) = 0.40. Floor = 0.36. Max = 0.40.
-        assert!((score.weighted_score - 0.40).abs() < 0.01);
+        // New scoring: weighted_sum = 0.16. Boosted (x1.8) = 0.288. Floor = 0.28. Max = 0.288.
+        assert!((score.weighted_score - 0.288).abs() < 0.02);
     }
 
     #[test]
@@ -262,8 +262,8 @@ mod tests {
         let correlator = Correlator::new(test_weights(), 60);
         let results = vec![DetectorResult::new("mass_write", 1.0, vec![], 100)];
         let score = correlator.add_results(100, "ransim.exe", results);
-        // max(1.0 * 0.15, 1.0 * 0.45) = 0.45 — Medium risk, enough for ML inference
-        assert!(score.weighted_score >= 0.45);
+        // max(1.0 * 0.15 * 1.8, 1.0 * 0.35) = 0.35 — Medium risk, enough for ML inference
+        assert!(score.weighted_score >= 0.27);
     }
 
     #[test]

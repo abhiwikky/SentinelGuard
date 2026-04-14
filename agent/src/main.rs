@@ -221,6 +221,17 @@ async fn main() -> Result<()> {
     let processing_alert_tx = alert_tx.clone();
     let processing_metrics_alerts = metrics.clone();
 
+    // Build whitelist set for fast lookups (lowercased)
+    let process_whitelist: std::collections::HashSet<String> = config
+        .agent
+        .process_whitelist
+        .iter()
+        .map(|p| p.to_lowercase())
+        .collect();
+    if !process_whitelist.is_empty() {
+        info!("Process whitelist active: {:?}", process_whitelist);
+    }
+
     info!("Starting event processing pipeline");
 
     let mut process_shutdown = shutdown_rx.clone();
@@ -240,6 +251,20 @@ async fn main() -> Result<()> {
                         warn!("Invalid event: {}", e);
                         processing_metrics.increment_events_dropped();
                         continue;
+                    }
+
+                    // Skip whitelisted processes entirely to avoid false positives
+                    // from known-safe system processes (svchost, Defender, etc.)
+                    if !process_whitelist.is_empty() {
+                        let exe_name = event.process_name
+                            .rsplit('\\')
+                            .next()
+                            .unwrap_or(&event.process_name)
+                            .to_lowercase();
+                        if process_whitelist.contains(&exe_name) {
+                            processing_metrics.increment_events_dropped();
+                            continue;
+                        }
                     }
 
                     // Event deduplication: skip identical (pid, path, op) within 50ms.
