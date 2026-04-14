@@ -2,7 +2,7 @@
 
 ## 1. Project Overview
 
-SentinelGuard is a Windows-first ransomware detection and intervention system for Windows 10/11 x64. It combines a kernel minifilter driver for real-time file-system telemetry, a Rust-based user-mode agent with 7 behavioral detectors and ONNX ML inference, a C++ quarantine helper for process suspension, and a browser-based React dashboard connected through a Node.js web bridge. When ransomware-like behavior exceeds a configurable risk threshold, the system automatically quarantines the offending process and persists forensic evidence.
+SentinelGuard is a Windows-first ransomware detection and intervention system for Windows 10/11 x64. It combines a kernel minifilter driver for real-time file-system telemetry, a Rust-based user-mode agent with 7 behavioral detectors and ONNX ML inference, a C++ quarantine helper for process suspension, and a browser-based React dashboard connected through a Node.js web bridge. When ransomware-like behavior exceeds a configurable risk threshold, the system automatically  quarantines the offending process and persists forensic evidence.
 
 ## 2. Goals and Non-Goals
 
