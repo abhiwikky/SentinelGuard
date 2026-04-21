@@ -91,14 +91,40 @@ impl InferenceEngine {
             match self.run_inference(&mut session, &features) {
                 Ok(ml_score) => {
                     score.ml_score = ml_score;
-                    // Blend heuristic and ML, but ensure a high-confidence ML score
-                    // can override a diluted heuristic score, AND a high-confidence 
-                    // heuristic score isn't completely suppressed by an uncertain ML model.
-                    let blended = score.weighted_score * 0.4 + score.ml_score * 0.6;
-                    score.final_score = blended
-                        .max(score.ml_score * 0.9)
-                        .max(score.weighted_score * 0.85)
-                        .min(1.0);
+
+                    // Adaptive blending: the weighting shifts based on how
+                    // confident the heuristic is. When many detectors fire
+                    // (heuristic > 0.6), the heuristic carries more conviction
+                    // and should not be dragged down by an uncertain ML model.
+                    let h = score.weighted_score;
+                    let m = score.ml_score;
+
+                    let (h_weight, m_weight) = if h > 0.6 {
+                        // Strong heuristic signal — trust it more
+                        (0.55, 0.45)
+                    } else if h > 0.3 {
+                        // Moderate signal — balanced
+                        (0.40, 0.60)
+                    } else {
+                        // Weak signal — lean on ML
+                        (0.30, 0.70)
+                    };
+
+                    let blended = h * h_weight + m * m_weight;
+
+                    // Heuristic dominance floor: a very high heuristic (multiple
+                    // detectors clearly firing) should guarantee a minimum final
+                    // score even if ML disagrees. This prevents the ML from
+                    // blocking quarantine of obvious ransomware.
+                    let heuristic_floor = if h > 0.7 {
+                        h * 0.9  // 83% heuristic → at least 75% final
+                    } else if h > 0.5 {
+                        h * 0.8
+                    } else {
+                        0.0
+                    };
+
+                    score.final_score = blended.max(heuristic_floor).min(1.0);
                 }
                 Err(e) => {
                     error!("ML inference failed: {}. Using weighted score.", e);

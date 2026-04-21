@@ -81,6 +81,16 @@ impl Correlator {
         // Calculate weighted score using the latest result per detector
         let weighted_score = self.calculate_weighted_score(&pw.detector_results);
 
+        // FIX: Decay stale ML scores when heuristic detectors have dropped
+        // below the inference threshold. Without this, a transient spike
+        // (e.g., browser touching many extensions briefly) would leave a high
+        // ml_score cached forever, even after all detectors return to zero.
+        const SCORE_DECAY_THRESHOLD: f64 = 0.1;
+        if weighted_score < SCORE_DECAY_THRESHOLD && pw.ml_score > 0.0 {
+            pw.ml_score = 0.0;
+            pw.final_score = 0.0;
+        }
+
         // Only include the highest-scoring result per detector for the UI.
         // This prevents the "Process Risk Details" from being a firehose of
         // thousands of mostly-zero results.
@@ -90,8 +100,8 @@ impl Correlator {
             process_id,
             process_name: pw.process_name.clone(),
             weighted_score,
-            ml_score: pw.ml_score, 
-            final_score: if pw.final_score > 0.0 { pw.final_score } else { weighted_score }, 
+            ml_score: pw.ml_score,
+            final_score: if pw.final_score > 0.0 { pw.final_score } else { weighted_score },
             detector_results: best_per_detector,
             window_start_ns: pw.window_start_ns,
             window_end_ns: pw.window_end_ns,
@@ -140,18 +150,19 @@ impl Correlator {
 
         // Boost the sum to account for the fact that a real ransomware attack
         // typically only triggers 2-3 detectors perfectly (sum ~ 0.30 - 0.45).
-        // A multiplier of 1.8 ensures that triggering 2-3 detectors simultaneously
-        // reaches quarantine threshold without inflating single-detector benign noise.
-        let boosted_sum = (weighted_sum * 1.8).min(1.0);
+        // A multiplier of 1.4 ensures multi-detector attacks reach quarantine
+        // without over-amplifying single-detector benign noise (was 1.8).
+        let boosted_sum = (weighted_sum * 1.4).min(1.0);
 
         // Sensitivity floor: if ANY single detector is very confident,
-        // ensure the overall score reflects that (e.g. at least 0.35).
+        // ensure the overall score reflects that (e.g. at least 0.25).
+        // Reduced from 0.35 to avoid single-detector false-positive inflation.
         let max_single_score = latest_scores
             .values()
             .copied()
             .fold(0.0f64, f64::max);
 
-        boosted_sum.max(max_single_score * 0.35).min(1.0)
+        boosted_sum.max(max_single_score * 0.25).min(1.0)
     }
 
     /// Reduce a list of detector results to only the highest-scoring result
@@ -252,8 +263,8 @@ mod tests {
         let correlator = Correlator::new(test_weights(), 60);
         let results = vec![DetectorResult::new("entropy_spike", 0.8, vec![], 100)];
         let score = correlator.add_results(100, "test.exe", results);
-        // New scoring: weighted_sum = 0.16. Boosted (x1.8) = 0.288. Floor = 0.28. Max = 0.288.
-        assert!((score.weighted_score - 0.288).abs() < 0.02);
+        // New scoring: weighted_sum = 0.16. Boosted (x1.4) = 0.224. Floor = 0.20. Max = 0.224.
+        assert!((score.weighted_score - 0.224).abs() < 0.02);
     }
 
     #[test]
@@ -262,8 +273,8 @@ mod tests {
         let correlator = Correlator::new(test_weights(), 60);
         let results = vec![DetectorResult::new("mass_write", 1.0, vec![], 100)];
         let score = correlator.add_results(100, "ransim.exe", results);
-        // max(1.0 * 0.15 * 1.8, 1.0 * 0.35) = 0.35 — Medium risk, enough for ML inference
-        assert!(score.weighted_score >= 0.27);
+        // max(1.0 * 0.15 * 1.4, 1.0 * 0.25) = 0.25 — Medium risk, enough for ML inference
+        assert!(score.weighted_score >= 0.21);
     }
 
     #[test]

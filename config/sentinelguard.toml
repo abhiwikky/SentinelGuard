@@ -20,6 +20,20 @@ process_whitelist = [
     "services.exe",
     "smss.exe",
     "System",
+    # Browsers — high file I/O (cache, cookies, temp) triggers process_behavior
+    "msedge.exe",
+    "chrome.exe",
+    "firefox.exe",
+    # Windows shell & runtime
+    "explorer.exe",
+    "RuntimeBroker.exe",
+    "ShellExperienceHost.exe",
+    "sihost.exe",
+    "taskhostw.exe",
+    # Windows Update & maintenance
+    "TiWorker.exe",
+    "TrustedInstaller.exe",
+    "WmiPrvSE.exe",
 ]
 
 [driver]
@@ -90,7 +104,7 @@ patterns = [
 
 [detectors.shadow_copy]
 # Process names associated with shadow copy deletion
-suspicious_processes = ["vssadmin.exe", "wmic.exe", "wbadmin.exe", "bcdedit.exe", "powershell.exe"]
+suspicious_processes = ["vssadmin.exe", "wmic.exe", "wbadmin.exe", "bcdedit.exe"]
 
 [detectors.process_behavior]
 # Maximum unique extensions a single process should write to

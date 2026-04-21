@@ -311,10 +311,14 @@ async fn main() -> Result<()> {
                         detector_results,
                     );
 
-                    // Conditional ML inference: only run the expensive ONNX model
-                    // when heuristic detectors found something suspicious.
-                    // This eliminates ~99% of ML invocations.
-                    if aggregated.weighted_score > ML_INFERENCE_THRESHOLD {
+                    // Conditional ML inference: run the ONNX model when:
+                    //  1. Heuristic detectors found something suspicious, OR
+                    //  2. There's a stale high ML score that needs re-evaluation
+                    //     (detectors dropped but old ml_score is still cached).
+                    // Case 2 ensures the model can clear its own false positives.
+                    let needs_inference = aggregated.weighted_score > ML_INFERENCE_THRESHOLD
+                        || aggregated.ml_score > 0.05;
+                    if needs_inference {
                         if let Err(e) = processing_inf.predict(&mut aggregated) {
                             warn!("ML inference error: {}", e);
                         } else {
