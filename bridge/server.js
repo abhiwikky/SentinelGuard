@@ -21,11 +21,14 @@
 const express = require("express");
 const cors = require("cors");
 const path = require("path");
+const fs = require("fs");
+const TOML = require("@iarna/toml");
 const { createClient, callUnary, DEFAULT_TARGET } = require("./grpc_client");
 
 const PORT = parseInt(process.env.BRIDGE_PORT || "3001", 10);
 const HOST = process.env.BRIDGE_HOST || "127.0.0.1";
 const GRPC_TARGET = process.env.GRPC_TARGET || DEFAULT_TARGET;
+const CONFIG_PATH = process.env.CONFIG_PATH || path.resolve(__dirname, "..", "config", "sentinelguard.toml");
 
 const app = express();
 app.use(cors({ origin: true }));
@@ -214,13 +217,99 @@ app.get("/api/detectors", async (req, res) => {
   }
 });
 
+// ─── Configuration Management ────────────────────────────────────────
+
+// Get current configuration
+app.get("/api/config", (req, res) => {
+  try {
+    if (!fs.existsSync(CONFIG_PATH)) {
+      return res.status(404).json({ error: "Config file not found", path: CONFIG_PATH });
+    }
+    const raw = fs.readFileSync(CONFIG_PATH, "utf-8");
+    const config = TOML.parse(raw);
+    res.json(config);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to read config", details: err.message });
+  }
+});
+
+// Update configuration
+app.put("/api/config", (req, res) => {
+  try {
+    const newConfig = req.body;
+    if (!newConfig || typeof newConfig !== "object") {
+      return res.status(400).json({ error: "Invalid config payload" });
+    }
+
+    // Read existing config to preserve comments structure
+    if (!fs.existsSync(CONFIG_PATH)) {
+      return res.status(404).json({ error: "Config file not found", path: CONFIG_PATH });
+    }
+
+    // Validate critical fields
+    if (newConfig.agent && newConfig.agent.log_level) {
+      const validLevels = ["trace", "debug", "info", "warn", "error"];
+      if (!validLevels.includes(newConfig.agent.log_level)) {
+        return res.status(400).json({ error: `Invalid log_level. Must be one of: ${validLevels.join(", ")}` });
+      }
+    }
+
+    if (newConfig.quarantine && newConfig.quarantine.auto_quarantine_threshold !== undefined) {
+      const t = newConfig.quarantine.auto_quarantine_threshold;
+      if (typeof t !== "number" || t < 0 || t > 1) {
+        return res.status(400).json({ error: "auto_quarantine_threshold must be a number between 0 and 1" });
+      }
+    }
+
+    // Backup existing config
+    const backupPath = CONFIG_PATH + ".bak";
+    fs.copyFileSync(CONFIG_PATH, backupPath);
+
+    // Write new config
+    const tomlString = TOML.stringify(newConfig);
+    fs.writeFileSync(CONFIG_PATH, tomlString, "utf-8");
+
+    res.json({ success: true, message: "Configuration saved. Agent restart required for changes to take effect." });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to write config", details: err.message });
+  }
+});
+
+// Get agent logs
+app.get("/api/logs", (req, res) => {
+  try {
+    // Try to read log path from config
+    let logPath = "C:\\ProgramData\\SentinelGuard\\logs\\sentinelguard.log";
+    try {
+      if (fs.existsSync(CONFIG_PATH)) {
+        const config = TOML.parse(fs.readFileSync(CONFIG_PATH, "utf-8"));
+        if (config.telemetry && config.telemetry.log_file) {
+          logPath = config.telemetry.log_file;
+        }
+      }
+    } catch (_) { /* use default */ }
+
+    if (!fs.existsSync(logPath)) {
+      return res.json({ lines: [], error: `Log file not found: ${logPath}` });
+    }
+
+    const maxLines = parseInt(req.query.lines || "200", 10);
+    const content = fs.readFileSync(logPath, "utf-8");
+    const allLines = content.split("\n");
+    const lines = allLines.slice(-maxLines);
+
+    res.json({ lines, total: allLines.length, path: logPath });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to read logs", details: err.message });
+  }
+});
+
 // ─── Static File Serving ─────────────────────────────────────────────
 
 // Serve the built UI in production
 // install.ps1 copies dist/* into ../ui/ (no dist subfolder), so check both locations
 const uiDistPath = path.resolve(__dirname, "..", "ui", "dist");
 const uiFlatPath = path.resolve(__dirname, "..", "ui");
-const fs = require("fs");
 const uiBuildPath = fs.existsSync(path.join(uiDistPath, "index.html")) ? uiDistPath : uiFlatPath;
 app.use(express.static(uiBuildPath));
 

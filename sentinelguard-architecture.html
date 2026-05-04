@@ -1,0 +1,1090 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SentinelGuard — Architecture Diagrams</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #070c14;
+    --panel: #0d1420;
+    --panel2: #111b2a;
+    --border: #1e3a5f;
+    --border2: #1a3050;
+    --accent: #00d4ff;
+    --accent2: #0099cc;
+    --green: #00ff88;
+    --green2: #00cc66;
+    --red: #ff4060;
+    --orange: #ff9020;
+    --purple: #a855f7;
+    --yellow: #ffd060;
+    --text: #cce6ff;
+    --text2: #7aafcf;
+    --text3: #3d6a8f;
+    --kernel: #1a0a2e;
+    --kernel-b: #6d28d9;
+    --agent: #0a1a2e;
+    --agent-b: #0066aa;
+    --bridge: #0a2010;
+    --bridge-b: #006644;
+    --ui: #1a1000;
+    --ui-b: #aa6600;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    line-height: 1.5;
+    min-height: 100vh;
+  }
+
+  /* ─── NAV ─── */
+  .nav {
+    position: sticky; top: 0; z-index: 100;
+    background: rgba(7,12,20,0.95);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 0;
+    padding: 0 32px;
+    backdrop-filter: blur(10px);
+  }
+  .nav-logo {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 18px; font-weight: 700;
+    color: var(--accent);
+    letter-spacing: 2px;
+    padding: 14px 0;
+    margin-right: 40px;
+    text-transform: uppercase;
+  }
+  .nav-logo span { color: var(--green); }
+  .nav-tabs { display: flex; gap: 0; }
+  .tab-btn {
+    background: none; border: none; cursor: pointer;
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 13px; font-weight: 600;
+    letter-spacing: 1px; text-transform: uppercase;
+    color: var(--text3);
+    padding: 16px 20px;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+  }
+  .tab-btn:hover { color: var(--text2); }
+  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .nav-badge {
+    margin-left: auto;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px; color: var(--text3);
+    letter-spacing: 1px;
+    padding: 14px 0;
+  }
+
+  /* ─── PAGES ─── */
+  .page { display: none; padding: 32px; max-width: 1400px; margin: 0 auto; }
+  .page.active { display: block; }
+
+  /* ─── HEADERS ─── */
+  .page-header { margin-bottom: 28px; }
+  .page-title {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 28px; font-weight: 700;
+    color: #fff; letter-spacing: 1px;
+    margin-bottom: 6px;
+  }
+  .page-sub {
+    font-size: 13px; color: var(--text2);
+    font-weight: 300;
+  }
+
+  /* ─── DIAGRAM CONTAINERS ─── */
+  .diagram-wrap {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 32px;
+    margin-bottom: 24px;
+    position: relative;
+    overflow: hidden;
+  }
+  .diagram-wrap::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  }
+  .diagram-title {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 14px; font-weight: 600;
+    letter-spacing: 2px; text-transform: uppercase;
+    color: var(--text3);
+    margin-bottom: 24px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .diagram-title::before {
+    content: '';
+    display: inline-block; width: 3px; height: 14px;
+    background: var(--accent);
+  }
+
+  /* ─── SVG DIAGRAMS ─── */
+  svg { width: 100%; overflow: visible; }
+
+  /* ─── LEGEND ─── */
+  .legend {
+    display: flex; flex-wrap: wrap; gap: 16px;
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border2);
+  }
+  .legend-item {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 11px; color: var(--text2);
+    font-family: 'Share Tech Mono', monospace;
+  }
+  .legend-dot {
+    width: 10px; height: 10px; border-radius: 2px;
+    flex-shrink: 0;
+  }
+
+  /* ─── GRID ─── */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+
+  /* ─── CARDS ─── */
+  .info-card {
+    background: var(--panel2);
+    border: 1px solid var(--border2);
+    border-radius: 6px;
+    padding: 16px;
+  }
+  .info-card-title {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 13px; font-weight: 600;
+    letter-spacing: 1px; text-transform: uppercase;
+    color: var(--text2);
+    margin-bottom: 10px;
+  }
+  .info-row {
+    display: flex; justify-content: space-between;
+    padding: 5px 0;
+    border-bottom: 1px solid rgba(30,58,95,0.4);
+    font-size: 12px;
+  }
+  .info-row:last-child { border-bottom: none; }
+  .info-label { color: var(--text3); }
+  .info-val { color: var(--text); font-family: 'Share Tech Mono', monospace; font-size: 11px; }
+  .tag {
+    display: inline-block;
+    padding: 1px 8px;
+    border-radius: 3px;
+    font-size: 10px; font-family: 'Share Tech Mono', monospace;
+    font-weight: 600; letter-spacing: 0.5px;
+  }
+  .tag-kernel { background: rgba(109,40,217,0.2); color: #c084fc; border: 1px solid rgba(109,40,217,0.4); }
+  .tag-rust { background: rgba(0,102,170,0.2); color: #60c0ff; border: 1px solid rgba(0,102,170,0.4); }
+  .tag-node { background: rgba(0,100,68,0.2); color: #4ade80; border: 1px solid rgba(0,100,68,0.4); }
+  .tag-react { background: rgba(170,100,0,0.2); color: #fbbf24; border: 1px solid rgba(170,100,0,0.4); }
+
+  /* ─── DETECTOR TABLE ─── */
+  .det-table { width: 100%; border-collapse: collapse; }
+  .det-table th {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 11px; letter-spacing: 1px; text-transform: uppercase;
+    color: var(--text3); font-weight: 600;
+    text-align: left; padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .det-table td {
+    padding: 9px 12px;
+    font-size: 12px; color: var(--text2);
+    border-bottom: 1px solid rgba(30,58,95,0.3);
+    vertical-align: middle;
+  }
+  .det-table tr:last-child td { border-bottom: none; }
+  .det-table tr:hover td { background: rgba(0,212,255,0.03); }
+  .det-name {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 12px; color: var(--accent);
+  }
+  .weight-bar {
+    display: flex; align-items: center; gap: 8px;
+  }
+  .weight-fill {
+    height: 6px; border-radius: 3px;
+    background: linear-gradient(90deg, var(--accent), var(--green));
+  }
+  .weight-txt {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px; color: var(--text3); width: 32px;
+  }
+
+  /* ─── SCAN LINE ANIMATION ─── */
+  @keyframes scan {
+    0% { transform: translateY(-100%); }
+    100% { transform: translateY(100vh); }
+  }
+  .scanline {
+    position: fixed; top: 0; left: 0; right: 0; height: 2px;
+    background: linear-gradient(transparent, rgba(0,212,255,0.05), transparent);
+    pointer-events: none; z-index: 9999;
+    animation: scan 6s linear infinite;
+  }
+
+  @keyframes pulse-dot {
+    0%,100% { opacity: 0.4; }
+    50% { opacity: 1; }
+  }
+  .pulse { animation: pulse-dot 2s ease-in-out infinite; }
+
+  @keyframes flow {
+    0% { stroke-dashoffset: 40; }
+    100% { stroke-dashoffset: 0; }
+  }
+  .flow-line { stroke-dasharray: 8 4; animation: flow 1s linear infinite; }
+  .flow-line-slow { stroke-dasharray: 8 4; animation: flow 2s linear infinite; }
+
+</style>
+</head>
+<body>
+<div class="scanline"></div>
+
+<nav class="nav">
+  <div class="nav-logo">Sentinel<span>Guard</span></div>
+  <div class="nav-tabs">
+    <button class="tab-btn active" onclick="showTab('overview')">Overall Architecture</button>
+    <button class="tab-btn" onclick="showTab('dfd')">Data Flow Diagram</button>
+    <button class="tab-btn" onclick="showTab('detail')">Detailed Architecture</button>
+  </div>
+  <div class="nav-badge">RANSOMWARE DETECTION PLATFORM · v1.0</div>
+</nav>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- PAGE 1: OVERALL ARCHITECTURE                                       -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="page active" id="page-overview">
+  <div class="page-header">
+    <div class="page-title">Overall System Architecture</div>
+    <div class="page-sub">Four-layer defense stack — from kernel telemetry to SOC dashboard · Windows 10/11 x64</div>
+  </div>
+
+  <div class="diagram-wrap">
+    <div class="diagram-title">Component Layer View</div>
+    <svg viewBox="0 0 1100 580" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <filter id="glow-b"><feGaussianBlur stdDeviation="3" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+        <filter id="glow-g"><feGaussianBlur stdDeviation="2" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+        <marker id="arr" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+          <polygon points="0 0, 8 3, 0 6" fill="#00d4ff"/>
+        </marker>
+        <marker id="arr-g" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+          <polygon points="0 0, 8 3, 0 6" fill="#00ff88"/>
+        </marker>
+        <marker id="arr-o" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+          <polygon points="0 0, 8 3, 0 6" fill="#ff9020"/>
+        </marker>
+        <linearGradient id="kg" x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0%" stop-color="#1a0a2e"/>
+          <stop offset="100%" stop-color="#0f0620"/>
+        </linearGradient>
+        <linearGradient id="ag" x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0%" stop-color="#0a1a2e"/>
+          <stop offset="100%" stop-color="#06101c"/>
+        </linearGradient>
+        <linearGradient id="bg-grad" x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0%" stop-color="#0a2010"/>
+          <stop offset="100%" stop-color="#061408"/>
+        </linearGradient>
+        <linearGradient id="ug" x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0%" stop-color="#1a1000"/>
+          <stop offset="100%" stop-color="#100a00"/>
+        </linearGradient>
+      </defs>
+
+      <!-- ── LAYER BACKGROUNDS ── -->
+      <!-- Kernel Layer -->
+      <rect x="10" y="10" width="1080" height="110" rx="8" fill="url(#kg)" stroke="#6d28d9" stroke-width="1.5" opacity="0.9"/>
+      <text x="26" y="35" font-family="Rajdhani,sans-serif" font-size="11" font-weight="600" fill="#9f7aea" letter-spacing="2">KERNEL SPACE</text>
+      <rect x="10" y="10" width="1080" height="3" rx="2" fill="#6d28d9" opacity="0.6"/>
+
+      <!-- Agent Layer -->
+      <rect x="10" y="145" width="1080" height="180" rx="8" fill="url(#ag)" stroke="#1e5f9f" stroke-width="1.5" opacity="0.9"/>
+      <text x="26" y="170" font-family="Rajdhani,sans-serif" font-size="11" font-weight="600" fill="#60a5fa" letter-spacing="2">USER-MODE AGENT  ·  RUST</text>
+      <rect x="10" y="145" width="1080" height="3" rx="2" fill="#1e5f9f" opacity="0.6"/>
+
+      <!-- Bridge Layer -->
+      <rect x="10" y="350" width="1080" height="90" rx="8" fill="url(#bg-grad)" stroke="#166534" stroke-width="1.5" opacity="0.9"/>
+      <text x="26" y="375" font-family="Rajdhani,sans-serif" font-size="11" font-weight="600" fill="#4ade80" letter-spacing="2">WEB BRIDGE  ·  NODE.JS</text>
+      <rect x="10" y="350" width="1080" height="3" rx="2" fill="#166534" opacity="0.6"/>
+
+      <!-- UI Layer -->
+      <rect x="10" y="465" width="1080" height="100" rx="8" fill="url(#ug)" stroke="#92400e" stroke-width="1.5" opacity="0.9"/>
+      <text x="26" y="490" font-family="Rajdhani,sans-serif" font-size="11" font-weight="600" fill="#fbbf24" letter-spacing="2">SOC DASHBOARD  ·  REACT / TYPESCRIPT</text>
+      <rect x="10" y="465" width="1080" height="3" rx="2" fill="#92400e" opacity="0.6"/>
+
+      <!-- ── KERNEL COMPONENTS ── -->
+      <!-- Windows File System -->
+      <rect x="40" y="45" width="180" height="60" rx="6" fill="#0d0620" stroke="#4c1d95" stroke-width="1"/>
+      <text x="130" y="68" font-family="Rajdhani,sans-serif" font-size="13" font-weight="600" fill="#c4b5fd" text-anchor="middle">Windows</text>
+      <text x="130" y="84" font-family="Rajdhani,sans-serif" font-size="13" font-weight="600" fill="#c4b5fd" text-anchor="middle">File System</text>
+      <text x="130" y="97" font-family="Share Tech Mono,monospace" font-size="9" fill="#7c3aed" text-anchor="middle">NTFS / I/O Operations</text>
+
+      <!-- Minifilter Driver -->
+      <rect x="270" y="45" width="200" height="60" rx="6" fill="#140a28" stroke="#7c3aed" stroke-width="2" filter="url(#glow-b)"/>
+      <text x="370" y="65" font-family="Rajdhani,sans-serif" font-size="14" font-weight="700" fill="#e9d5ff" text-anchor="middle">Minifilter Driver</text>
+      <text x="370" y="81" font-family="Share Tech Mono,monospace" font-size="10" fill="#a78bfa" text-anchor="middle">sentinelguard.sys</text>
+      <text x="370" y="97" font-family="Share Tech Mono,monospace" font-size="9" fill="#7c3aed" text-anchor="middle">Kernel Mode · C</text>
+
+      <!-- Filter Manager -->
+      <rect x="520" y="45" width="180" height="60" rx="6" fill="#0d0620" stroke="#4c1d95" stroke-width="1"/>
+      <text x="610" y="68" font-family="Rajdhani,sans-serif" font-size="13" font-weight="600" fill="#c4b5fd" text-anchor="middle">Windows</text>
+      <text x="610" y="84" font-family="Rajdhani,sans-serif" font-size="13" font-weight="600" fill="#c4b5fd" text-anchor="middle">Filter Manager</text>
+      <text x="610" y="97" font-family="Share Tech Mono,monospace" font-size="9" fill="#7c3aed" text-anchor="middle">IPC Comm Port</text>
+
+      <!-- Arrows kernel -->
+      <line x1="220" y1="75" x2="268" y2="75" stroke="#6d28d9" stroke-width="1.5" marker-end="url(#arr)"/>
+      <line x1="470" y1="75" x2="518" y2="75" stroke="#6d28d9" stroke-width="1.5" marker-end="url(#arr)"/>
+
+      <!-- ── AGENT COMPONENTS ── -->
+      <!-- Communication -->
+      <rect x="40" y="185" width="140" height="55" rx="5" fill="#071224" stroke="#1e5f9f" stroke-width="1"/>
+      <text x="110" y="208" font-family="Rajdhani,sans-serif" font-size="12" font-weight="600" fill="#93c5fd" text-anchor="middle">Driver Comm</text>
+      <text x="110" y="222" font-family="Share Tech Mono,monospace" font-size="9" fill="#3b6ea5" text-anchor="middle">communication.rs</text>
+      <text x="110" y="234" font-family="Share Tech Mono,monospace" font-size="9" fill="#3b6ea5" text-anchor="middle">Event Buffer ×10K</text>
+
+      <!-- Detectors box -->
+      <rect x="220" y="175" width="370" height="130" rx="6" fill="#040e1c" stroke="#0a4a82" stroke-width="1.5"/>
+      <text x="405" y="196" font-family="Rajdhani,sans-serif" font-size="11" font-weight="600" fill="#60a5fa" text-anchor="middle" letter-spacing="1">BEHAVIORAL DETECTORS  (7)</text>
+      <!-- detector chips -->
+      <rect x="230" y="203" width="100" height="22" rx="3" fill="#071224" stroke="#1e3d5f" stroke-width="1"/>
+      <text x="280" y="218" font-family="Share Tech Mono,monospace" font-size="9" fill="#60a5fa" text-anchor="middle">entropy_spike</text>
+
+      <rect x="340" y="203" width="100" height="22" rx="3" fill="#071224" stroke="#1e3d5f" stroke-width="1"/>
+      <text x="390" y="218" font-family="Share Tech Mono,monospace" font-size="9" fill="#60a5fa" text-anchor="middle">mass_write</text>
+
+      <rect x="450" y="203" width="130" height="22" rx="3" fill="#071224" stroke="#1e3d5f" stroke-width="1"/>
+      <text x="515" y="218" font-family="Share Tech Mono,monospace" font-size="9" fill="#60a5fa" text-anchor="middle">mass_rename_delete</text>
+
+      <rect x="230" y="234" width="100" height="22" rx="3" fill="#071224" stroke="#1e3d5f" stroke-width="1"/>
+      <text x="280" y="249" font-family="Share Tech Mono,monospace" font-size="9" fill="#60a5fa" text-anchor="middle">ransom_note</text>
+
+      <rect x="340" y="234" width="100" height="22" rx="3" fill="#071224" stroke="#1e3d5f" stroke-width="1"/>
+      <text x="390" y="249" font-family="Share Tech Mono,monospace" font-size="9" fill="#60a5fa" text-anchor="middle">shadow_copy</text>
+
+      <rect x="450" y="234" width="130" height="22" rx="3" fill="#071224" stroke="#1e3d5f" stroke-width="1"/>
+      <text x="515" y="249" font-family="Share Tech Mono,monospace" font-size="9" fill="#60a5fa" text-anchor="middle">process_behavior</text>
+
+      <rect x="230" y="264" width="130" height="22" rx="3" fill="#071224" stroke="#1e3d5f" stroke-width="1"/>
+      <text x="295" y="279" font-family="Share Tech Mono,monospace" font-size="9" fill="#60a5fa" text-anchor="middle">extension_explosion</text>
+
+      <text x="450" y="281" font-family="Share Tech Mono,monospace" font-size="9" fill="#3b6ea5" text-anchor="middle">60s sliding window · per-process state</text>
+
+      <!-- Correlator -->
+      <rect x="610" y="185" width="140" height="55" rx="5" fill="#071224" stroke="#1e5f9f" stroke-width="1"/>
+      <text x="680" y="208" font-family="Rajdhani,sans-serif" font-size="12" font-weight="600" fill="#93c5fd" text-anchor="middle">Correlator</text>
+      <text x="680" y="222" font-family="Share Tech Mono,monospace" font-size="9" fill="#3b6ea5" text-anchor="middle">correlation.rs</text>
+      <text x="680" y="234" font-family="Share Tech Mono,monospace" font-size="9" fill="#3b6ea5" text-anchor="middle">Weighted Scoring</text>
+
+      <!-- ONNX Inference -->
+      <rect x="610" y="255" width="140" height="50" rx="5" fill="#0d1a0d" stroke="#166534" stroke-width="1.5"/>
+      <text x="680" y="276" font-family="Rajdhani,sans-serif" font-size="12" font-weight="600" fill="#4ade80" text-anchor="middle">ML Inference</text>
+      <text x="680" y="290" font-family="Share Tech Mono,monospace" font-size="9" fill="#166534" text-anchor="middle">ONNX Runtime · 7 features</text>
+      <text x="680" y="300" font-family="Share Tech Mono,monospace" font-size="9" fill="#166534" text-anchor="middle">inference.rs</text>
+
+      <!-- Quarantine -->
+      <rect x="775" y="185" width="140" height="55" rx="5" fill="#200505" stroke="#7f1d1d" stroke-width="1.5"/>
+      <text x="845" y="208" font-family="Rajdhani,sans-serif" font-size="12" font-weight="600" fill="#fca5a5" text-anchor="middle">Quarantine</text>
+      <text x="845" y="222" font-family="Share Tech Mono,monospace" font-size="9" fill="#7f1d1d" text-anchor="middle">quarantine.rs</text>
+      <text x="845" y="234" font-family="Share Tech Mono,monospace" font-size="9" fill="#7f1d1d" text-anchor="middle">Auto suspend &gt;0.75</text>
+
+      <!-- SQLite DB -->
+      <rect x="775" y="255" width="140" height="50" rx="5" fill="#071224" stroke="#1e3d5f" stroke-width="1"/>
+      <text x="845" y="276" font-family="Rajdhani,sans-serif" font-size="12" font-weight="600" fill="#93c5fd" text-anchor="middle">SQLite DB</text>
+      <text x="845" y="290" font-family="Share Tech Mono,monospace" font-size="9" fill="#3b6ea5" text-anchor="middle">database.rs · WAL mode</text>
+      <text x="845" y="300" font-family="Share Tech Mono,monospace" font-size="9" fill="#3b6ea5" text-anchor="middle">Alerts · Events · Forensics</text>
+
+      <!-- gRPC Server -->
+      <rect x="940" y="185" width="130" height="120" rx="5" fill="#071a10" stroke="#166534" stroke-width="2" filter="url(#glow-g)"/>
+      <text x="1005" y="213" font-family="Rajdhani,sans-serif" font-size="13" font-weight="700" fill="#4ade80" text-anchor="middle">gRPC</text>
+      <text x="1005" y="229" font-family="Rajdhani,sans-serif" font-size="13" font-weight="700" fill="#4ade80" text-anchor="middle">Server</text>
+      <text x="1005" y="246" font-family="Share Tech Mono,monospace" font-size="9" fill="#166534" text-anchor="middle">grpc_server.rs</text>
+      <text x="1005" y="260" font-family="Share Tech Mono,monospace" font-size="9" fill="#166534" text-anchor="middle">127.0.0.1:50051</text>
+      <line x1="990" y1="270" x2="1020" y2="270" stroke="#166534" stroke-width="0.5"/>
+      <text x="1005" y="284" font-family="Share Tech Mono,monospace" font-size="9" fill="#0f4a28" text-anchor="middle">GetHealth</text>
+      <text x="1005" y="296" font-family="Share Tech Mono,monospace" font-size="9" fill="#0f4a28" text-anchor="middle">GetAlerts · StreamAlerts</text>
+
+      <!-- Arrows within agent layer -->
+      <line x1="180" y1="212" x2="218" y2="212" stroke="#1e5f9f" stroke-width="1.5" marker-end="url(#arr)"/>
+      <line x1="590" y1="212" x2="608" y2="212" stroke="#1e5f9f" stroke-width="1.5" marker-end="url(#arr)"/>
+      <line x1="750" y1="212" x2="773" y2="212" stroke="#7f1d1d" stroke-width="1.5" marker-end="url(#arr-o)"/>
+      <line x1="680" y1="240" x2="680" y2="253" stroke="#1e5f9f" stroke-width="1.5" marker-end="url(#arr)"/>
+      <line x1="915" y1="245" x2="938" y2="245" stroke="#166534" stroke-width="1.5" marker-end="url(#arr-g)"/>
+
+      <!-- Quarantine helper external -->
+      <rect x="775" y="310" width="140" height="22" rx="3" fill="#1a0505" stroke="#7f1d1d" stroke-width="1" stroke-dasharray="4,2"/>
+      <text x="845" y="324" font-family="Share Tech Mono,monospace" font-size="9" fill="#f87171" text-anchor="middle">quarantine_helper.exe  C++</text>
+      <line x1="845" y1="307" x2="845" y2="310" stroke="#7f1d1d" stroke-width="1" stroke-dasharray="3,2"/>
+
+      <!-- IPC comm port arrow kernel->agent -->
+      <line x1="610" y1="108" x2="610" y2="143" stroke="#6d28d9" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#arr)"/>
+      <text x="625" y="130" font-family="Share Tech Mono,monospace" font-size="8" fill="#7c3aed">comm port</text>
+      <line x1="370" y1="108" x2="300" y2="143" stroke="#6d28d9" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#arr)"/>
+
+      <!-- ── BRIDGE COMPONENTS ── -->
+      <rect x="380" y="373" width="200" height="50" rx="5" fill="#071a10" stroke="#166534" stroke-width="1.5" filter="url(#glow-g)"/>
+      <text x="480" y="395" font-family="Rajdhani,sans-serif" font-size="13" font-weight="600" fill="#4ade80" text-anchor="middle">Node.js Bridge</text>
+      <text x="480" y="410" font-family="Share Tech Mono,monospace" font-size="9" fill="#166534" text-anchor="middle">127.0.0.1:3001 · HTTP/JSON/SSE</text>
+
+      <rect x="620" y="373" width="160" height="50" rx="5" fill="#061408" stroke="#0f4a28" stroke-width="1"/>
+      <text x="700" y="393" font-family="Rajdhani,sans-serif" font-size="11" fill="#4ade80" text-anchor="middle">REST Endpoints</text>
+      <text x="700" y="407" font-family="Share Tech Mono,monospace" font-size="8" fill="#0f4a28" text-anchor="middle">/api/health · /api/alerts</text>
+      <text x="700" y="418" font-family="Share Tech Mono,monospace" font-size="8" fill="#0f4a28" text-anchor="middle">/api/processes · /api/quarantined</text>
+
+      <rect x="800" y="373" width="120" height="50" rx="5" fill="#061408" stroke="#0f4a28" stroke-width="1"/>
+      <text x="860" y="393" font-family="Rajdhani,sans-serif" font-size="11" fill="#4ade80" text-anchor="middle">SSE Stream</text>
+      <text x="860" y="408" font-family="Share Tech Mono,monospace" font-size="8" fill="#0f4a28" text-anchor="middle">/api/alerts/stream</text>
+      <text x="860" y="419" font-family="Share Tech Mono,monospace" font-size="8" fill="#0f4a28" text-anchor="middle">Real-time push</text>
+
+      <!-- gRPC -> Bridge arrow -->
+      <line x1="1005" y1="348" x2="1005" y2="360" stroke="#00ff88" stroke-width="1.5"/>
+      <line x1="1005" y1="360" x2="590" y2="360" stroke="#00ff88" stroke-width="1.5"/>
+      <line x1="590" y1="360" x2="480" y2="372" stroke="#00ff88" stroke-width="1.5" marker-end="url(#arr-g)"/>
+      <text x="750" y="355" font-family="Share Tech Mono,monospace" font-size="9" fill="#166534" text-anchor="middle">gRPC :50051</text>
+
+      <!-- ── UI COMPONENTS ── -->
+      <rect x="100" y="488" width="120" height="52" rx="5" fill="#120a00" stroke="#92400e" stroke-width="1"/>
+      <text x="160" y="508" font-family="Rajdhani,sans-serif" font-size="11" fill="#fbbf24" text-anchor="middle">Dashboard</text>
+      <text x="160" y="522" font-family="Share Tech Mono,monospace" font-size="8" fill="#92400e" text-anchor="middle">Metrics · Health</text>
+      <text x="160" y="533" font-family="Share Tech Mono,monospace" font-size="8" fill="#92400e" text-anchor="middle">DashboardPage.tsx</text>
+
+      <rect x="250" y="488" width="120" height="52" rx="5" fill="#120a00" stroke="#92400e" stroke-width="1"/>
+      <text x="310" y="508" font-family="Rajdhani,sans-serif" font-size="11" fill="#fbbf24" text-anchor="middle">Alert Feed</text>
+      <text x="310" y="522" font-family="Share Tech Mono,monospace" font-size="8" fill="#92400e" text-anchor="middle">Live alerts · severity</text>
+      <text x="310" y="533" font-family="Share Tech Mono,monospace" font-size="8" fill="#92400e" text-anchor="middle">AlertsPage.tsx</text>
+
+      <rect x="400" y="488" width="130" height="52" rx="5" fill="#120a00" stroke="#92400e" stroke-width="1"/>
+      <text x="465" y="508" font-family="Rajdhani,sans-serif" font-size="11" fill="#fbbf24" text-anchor="middle">Process Risk</text>
+      <text x="465" y="522" font-family="Share Tech Mono,monospace" font-size="8" fill="#92400e" text-anchor="middle">Per-process scores</text>
+      <text x="465" y="533" font-family="Share Tech Mono,monospace" font-size="8" fill="#92400e" text-anchor="middle">ProcessRiskPage.tsx</text>
+
+      <rect x="560" y="488" width="130" height="52" rx="5" fill="#120a00" stroke="#92400e" stroke-width="1"/>
+      <text x="625" y="508" font-family="Rajdhani,sans-serif" font-size="11" fill="#fbbf24" text-anchor="middle">Quarantine</text>
+      <text x="625" y="522" font-family="Share Tech Mono,monospace" font-size="8" fill="#92400e" text-anchor="middle">Suspend · Release</text>
+      <text x="625" y="533" font-family="Share Tech Mono,monospace" font-size="8" fill="#92400e" text-anchor="middle">QuarantinePage.tsx</text>
+
+      <rect x="720" y="488" width="130" height="52" rx="5" fill="#120a00" stroke="#92400e" stroke-width="1"/>
+      <text x="785" y="508" font-family="Rajdhani,sans-serif" font-size="11" fill="#fbbf24" text-anchor="middle">Detector Logs</text>
+      <text x="785" y="522" font-family="Share Tech Mono,monospace" font-size="8" fill="#92400e" text-anchor="middle">Per-detector evidence</text>
+      <text x="785" y="533" font-family="Share Tech Mono,monospace" font-size="8" fill="#92400e" text-anchor="middle">AlertFeed.tsx</text>
+
+      <!-- Bridge -> UI arrow -->
+      <line x1="480" y1="424" x2="480" y2="463" stroke="#fbbf24" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#arr-o)"/>
+      <text x="490" y="447" font-family="Share Tech Mono,monospace" font-size="9" fill="#92400e">HTTP</text>
+
+      <!-- Security badge -->
+      <rect x="10" y="10" width="1080" height="580" rx="8" fill="none" stroke="none"/>
+      <rect x="946" y="430" width="144" height="28" rx="4" fill="#070c14" stroke="#1e3a5f" stroke-width="1"/>
+      <text x="1018" y="448" font-family="Share Tech Mono,monospace" font-size="9" fill="#3b6ea5" text-anchor="middle">🔒  localhost-only bindings</text>
+
+    </svg>
+
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot" style="background:#6d28d9"></div>Kernel Space (Ring 0)</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#1e5f9f"></div>User-Mode Agent (Rust / Ring 3)</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#166534"></div>Web Bridge / ML (Node.js / ONNX)</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#92400e"></div>SOC Dashboard (React)</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#7f1d1d"></div>Response / Quarantine</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#00ff88"></div>gRPC IPC Channel</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#fbbf24"></div>HTTP/JSON/SSE</div>
+    </div>
+  </div>
+
+  <div class="three-col">
+    <div class="info-card">
+      <div class="info-card-title">Stack Summary</div>
+      <div class="info-row"><span class="info-label">Kernel Driver</span><span class="tag tag-kernel">C · WDK</span></div>
+      <div class="info-row"><span class="info-label">Detection Engine</span><span class="tag tag-rust">Rust 1.75+</span></div>
+      <div class="info-row"><span class="info-label">ML Runtime</span><span class="info-val">ONNX 1.16+</span></div>
+      <div class="info-row"><span class="info-label">API Bridge</span><span class="tag tag-node">Node.js 18+</span></div>
+      <div class="info-row"><span class="info-label">Dashboard</span><span class="tag tag-react">React/TS</span></div>
+      <div class="info-row"><span class="info-label">Storage</span><span class="info-val">SQLite WAL</span></div>
+      <div class="info-row"><span class="info-label">IPC Protocol</span><span class="info-val">gRPC / Protobuf</span></div>
+    </div>
+    <div class="info-card">
+      <div class="info-card-title">Security Posture</div>
+      <div class="info-row"><span class="info-label">Network Exposure</span><span class="info-val" style="color:var(--green)">localhost only</span></div>
+      <div class="info-row"><span class="info-label">Agent Privilege</span><span class="info-val">LOCAL SYSTEM</span></div>
+      <div class="info-row"><span class="info-label">Quarantine Helper</span><span class="info-val">Admin required</span></div>
+      <div class="info-row"><span class="info-label">IPC</span><span class="info-val">Filter Mgr comm port</span></div>
+      <div class="info-row"><span class="info-label">External calls</span><span class="info-val" style="color:var(--green)">None (air-gapped)</span></div>
+      <div class="info-row"><span class="info-label">Driver signing</span><span class="info-val">scripts/sign.ps1</span></div>
+    </div>
+    <div class="info-card">
+      <div class="info-card-title">Detection Config</div>
+      <div class="info-row"><span class="info-label">Auto-Quarantine</span><span class="info-val">risk &gt; 0.75</span></div>
+      <div class="info-row"><span class="info-label">ML Threshold</span><span class="info-val">score &gt; 0.10</span></div>
+      <div class="info-row"><span class="info-label">Window</span><span class="info-val">60s sliding</span></div>
+      <div class="info-row"><span class="info-label">Event Buffer</span><span class="info-val">10,000 events</span></div>
+      <div class="info-row"><span class="info-label">Dedup Window</span><span class="info-val">50ms</span></div>
+      <div class="info-row"><span class="info-label">Whitelist</span><span class="info-val">18 system procs</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- PAGE 2: DATA FLOW DIAGRAM                                          -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="page" id="page-dfd">
+  <div class="page-header">
+    <div class="page-title">Data Flow Diagram</div>
+    <div class="page-sub">End-to-end telemetry pipeline — from raw I/O event to analyst action</div>
+  </div>
+
+  <div class="diagram-wrap">
+    <div class="diagram-title">Event Lifecycle — Detection to Response</div>
+    <svg viewBox="0 0 1100 620" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="fa" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+          <polygon points="0 0, 8 3, 0 6" fill="#00d4ff"/>
+        </marker>
+        <marker id="fg" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+          <polygon points="0 0, 8 3, 0 6" fill="#00ff88"/>
+        </marker>
+        <marker id="fr" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+          <polygon points="0 0, 8 3, 0 6" fill="#ff4060"/>
+        </marker>
+        <marker id="fo" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+          <polygon points="0 0, 8 3, 0 6" fill="#ff9020"/>
+        </marker>
+        <marker id="fy" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+          <polygon points="0 0, 8 3, 0 6" fill="#ffd060"/>
+        </marker>
+      </defs>
+
+      <!-- ─── EXTERNAL ENTITY: Process ─── -->
+      <rect x="20" y="270" width="100" height="50" rx="4" fill="#0a0a0a" stroke="#444" stroke-width="1.5"/>
+      <text x="70" y="292" font-family="Rajdhani,sans-serif" font-size="13" font-weight="600" fill="#888" text-anchor="middle">Windows</text>
+      <text x="70" y="308" font-family="Rajdhani,sans-serif" font-size="13" font-weight="600" fill="#888" text-anchor="middle">Process</text>
+
+      <!-- ─── PROCESS NODES ─── -->
+      <!-- P1: Minifilter -->
+      <ellipse cx="220" cy="295" rx="75" ry="35" fill="#140a28" stroke="#7c3aed" stroke-width="2"/>
+      <text x="220" y="289" font-family="Rajdhani,sans-serif" font-size="12" font-weight="700" fill="#e9d5ff" text-anchor="middle">P1</text>
+      <text x="220" y="303" font-family="Rajdhani,sans-serif" font-size="11" fill="#c4b5fd" text-anchor="middle">Minifilter</text>
+      <text x="220" y="316" font-family="Share Tech Mono,monospace" font-size="8" fill="#7c3aed" text-anchor="middle">Intercept I/O</text>
+
+      <!-- P2: Event Processing -->
+      <ellipse cx="400" cy="295" rx="75" ry="35" fill="#071224" stroke="#1e5f9f" stroke-width="2"/>
+      <text x="400" y="289" font-family="Rajdhani,sans-serif" font-size="12" font-weight="700" fill="#93c5fd" text-anchor="middle">P2</text>
+      <text x="400" y="303" font-family="Rajdhani,sans-serif" font-size="11" fill="#60a5fa" text-anchor="middle">Event Processing</text>
+      <text x="400" y="316" font-family="Share Tech Mono,monospace" font-size="8" fill="#3b6ea5" text-anchor="middle">Dedup · Whitelist filter</text>
+
+      <!-- P3: Behavioral Analysis -->
+      <ellipse cx="580" cy="200" rx="80" ry="38" fill="#071224" stroke="#0a6090" stroke-width="2"/>
+      <text x="580" y="194" font-family="Rajdhani,sans-serif" font-size="12" font-weight="700" fill="#93c5fd" text-anchor="middle">P3</text>
+      <text x="580" y="208" font-family="Rajdhani,sans-serif" font-size="11" fill="#60a5fa" text-anchor="middle">Behavioral Analysis</text>
+      <text x="580" y="222" font-family="Share Tech Mono,monospace" font-size="8" fill="#3b6ea5" text-anchor="middle">7 detectors · per-process state</text>
+
+      <!-- P4: ML Inference -->
+      <ellipse cx="760" cy="200" rx="70" ry="35" fill="#071a10" stroke="#166534" stroke-width="2"/>
+      <text x="760" y="194" font-family="Rajdhani,sans-serif" font-size="12" font-weight="700" fill="#4ade80" text-anchor="middle">P4</text>
+      <text x="760" y="208" font-family="Rajdhani,sans-serif" font-size="11" fill="#4ade80" text-anchor="middle">ML Inference</text>
+      <text x="760" y="222" font-family="Share Tech Mono,monospace" font-size="8" fill="#166534" text-anchor="middle">ONNX · 7-feature vector</text>
+
+      <!-- P5: Risk Correlation -->
+      <ellipse cx="920" cy="295" rx="75" ry="35" fill="#071224" stroke="#1e5f9f" stroke-width="2"/>
+      <text x="920" y="289" font-family="Rajdhani,sans-serif" font-size="12" font-weight="700" fill="#93c5fd" text-anchor="middle">P5</text>
+      <text x="920" y="303" font-family="Rajdhani,sans-serif" font-size="11" fill="#60a5fa" text-anchor="middle">Risk Correlation</text>
+      <text x="920" y="316" font-family="Share Tech Mono,monospace" font-size="8" fill="#3b6ea5" text-anchor="middle">Final score = weighted+ML</text>
+
+      <!-- P6: Quarantine Decision -->
+      <ellipse cx="750" cy="400" rx="80" ry="38" fill="#200505" stroke="#7f1d1d" stroke-width="2"/>
+      <text x="750" y="394" font-family="Rajdhani,sans-serif" font-size="12" font-weight="700" fill="#fca5a5" text-anchor="middle">P6</text>
+      <text x="750" y="408" font-family="Rajdhani,sans-serif" font-size="11" fill="#fca5a5" text-anchor="middle">Quarantine Decision</text>
+      <text x="750" y="422" font-family="Share Tech Mono,monospace" font-size="8" fill="#7f1d1d" text-anchor="middle">score &gt; 0.75 → suspend</text>
+
+      <!-- P7: API / Notify -->
+      <ellipse cx="550" cy="500" rx="75" ry="35" fill="#071a10" stroke="#166534" stroke-width="2"/>
+      <text x="550" y="494" font-family="Rajdhani,sans-serif" font-size="12" font-weight="700" fill="#4ade80" text-anchor="middle">P7</text>
+      <text x="550" y="508" font-family="Rajdhani,sans-serif" font-size="11" fill="#4ade80" text-anchor="middle">API / Notify</text>
+      <text x="550" y="522" font-family="Share Tech Mono,monospace" font-size="8" fill="#166534" text-anchor="middle">gRPC → Node → SSE</text>
+
+      <!-- ─── DATA STORES ─── -->
+      <!-- D1: Event Buffer -->
+      <rect x="340" y="380" width="130" height="36" rx="0" fill="#071224" stroke="#1e3d5f" stroke-width="1.5"/>
+      <line x1="340" y1="380" x2="340" y2="416" stroke="#1e3d5f" stroke-width="3"/>
+      <line x1="470" y1="380" x2="470" y2="416" stroke="#1e3d5f" stroke-width="3"/>
+      <text x="405" y="396" font-family="Rajdhani,sans-serif" font-size="11" fill="#60a5fa" text-anchor="middle">D1</text>
+      <text x="405" y="410" font-family="Share Tech Mono,monospace" font-size="8" fill="#3b6ea5" text-anchor="middle">Event Buffer  10K</text>
+
+      <!-- D2: SQLite -->
+      <rect x="140" y="460" width="130" height="36" rx="0" fill="#071224" stroke="#1e3d5f" stroke-width="1.5"/>
+      <line x1="140" y1="460" x2="140" y2="496" stroke="#1e3d5f" stroke-width="3"/>
+      <line x1="270" y1="460" x2="270" y2="496" stroke="#1e3d5f" stroke-width="3"/>
+      <text x="205" y="476" font-family="Rajdhani,sans-serif" font-size="11" fill="#60a5fa" text-anchor="middle">D2</text>
+      <text x="205" y="490" font-family="Share Tech Mono,monospace" font-size="8" fill="#3b6ea5" text-anchor="middle">SQLite  Alerts+Events</text>
+
+      <!-- D3: ONNX Model -->
+      <rect x="820" y="120" width="130" height="36" rx="0" fill="#071a10" stroke="#166534" stroke-width="1.5"/>
+      <line x1="820" y1="120" x2="820" y2="156" stroke="#166534" stroke-width="3"/>
+      <line x1="950" y1="120" x2="950" y2="156" stroke="#166534" stroke-width="3"/>
+      <text x="885" y="136" font-family="Rajdhani,sans-serif" font-size="11" fill="#4ade80" text-anchor="middle">D3</text>
+      <text x="885" y="150" font-family="Share Tech Mono,monospace" font-size="8" fill="#166534" text-anchor="middle">model.onnx  trained weights</text>
+
+      <!-- ─── EXTERNAL ENTITIES ─── -->
+      <!-- SOC Analyst -->
+      <rect x="460" y="580" width="110" height="36" rx="4" fill="#0a0a0a" stroke="#444" stroke-width="1.5"/>
+      <text x="515" y="600" font-family="Rajdhani,sans-serif" font-size="12" font-weight="600" fill="#888" text-anchor="middle">SOC Analyst</text>
+      <text x="515" y="612" font-family="Share Tech Mono,monospace" font-size="8" fill="#555" text-anchor="middle">Dashboard</text>
+
+      <!-- ─── DATA FLOWS ─── -->
+      <!-- Process → P1 -->
+      <line x1="120" y1="295" x2="143" y2="295" stroke="#00d4ff" stroke-width="1.5" marker-end="url(#fa)" class="flow-line"/>
+      <text x="130" y="288" font-family="Share Tech Mono,monospace" font-size="8" fill="#2a6a8a" text-anchor="middle">file I/O</text>
+
+      <!-- P1 → P2 -->
+      <line x1="295" y1="295" x2="323" y2="295" stroke="#00d4ff" stroke-width="1.5" marker-end="url(#fa)" class="flow-line"/>
+      <text x="309" y="288" font-family="Share Tech Mono,monospace" font-size="8" fill="#2a6a8a" text-anchor="middle">FileEvent</text>
+
+      <!-- P2 → D1 -->
+      <line x1="405" y1="330" x2="405" y2="378" stroke="#00d4ff" stroke-width="1.5" marker-end="url(#fa)" class="flow-line-slow"/>
+      <text x="418" y="360" font-family="Share Tech Mono,monospace" font-size="8" fill="#2a6a8a">buffer</text>
+
+      <!-- P2 → P3 -->
+      <line x1="467" y1="270" x2="497" y2="228" stroke="#00d4ff" stroke-width="1.5" marker-end="url(#fa)" class="flow-line"/>
+      <text x="473" y="246" font-family="Share Tech Mono,monospace" font-size="8" fill="#2a6a8a">FileEvent</text>
+
+      <!-- P3 → P4 -->
+      <line x1="661" y1="200" x2="688" y2="200" stroke="#00d4ff" stroke-width="1.5" marker-end="url(#fa)" class="flow-line"/>
+      <text x="674" y="193" font-family="Share Tech Mono,monospace" font-size="8" fill="#2a6a8a" text-anchor="middle">feature vec</text>
+
+      <!-- D3 → P4 -->
+      <line x1="885" y1="157" x2="810" y2="175" stroke="#4ade80" stroke-width="1.5" marker-end="url(#fg)" class="flow-line-slow"/>
+      <text x="848" y="158" font-family="Share Tech Mono,monospace" font-size="8" fill="#166534">weights</text>
+
+      <!-- P4 → P5 -->
+      <line x1="820" y1="213" x2="888" y2="262" stroke="#00d4ff" stroke-width="1.5" marker-end="url(#fa)" class="flow-line"/>
+      <text x="862" y="230" font-family="Share Tech Mono,monospace" font-size="8" fill="#2a6a8a" text-anchor="middle">ml_score</text>
+
+      <!-- P3 → P5 (detector scores) -->
+      <line x1="656" y1="213" x2="861" y2="268" stroke="#00d4ff" stroke-width="1.5" marker-end="url(#fa)" class="flow-line"/>
+      <text x="765" y="228" font-family="Share Tech Mono,monospace" font-size="8" fill="#2a6a8a" text-anchor="middle">detector scores</text>
+
+      <!-- P5 → P6 -->
+      <line x1="880" y1="318" x2="820" y2="372" stroke="#ff4060" stroke-width="2" marker-end="url(#fr)" class="flow-line"/>
+      <text x="870" y="350" font-family="Share Tech Mono,monospace" font-size="8" fill="#7f1d1d" text-anchor="middle">final score</text>
+
+      <!-- P6 → Windows Process (suspend) -->
+      <line x1="670" y1="400" x2="120" y2="320" stroke="#ff4060" stroke-width="2" marker-end="url(#fr)" class="flow-line"/>
+      <text x="380" y="365" font-family="Share Tech Mono,monospace" font-size="9" fill="#ff4060" text-anchor="middle">SUSPEND PROCESS</text>
+
+      <!-- P5 → P7 -->
+      <line x1="920" y1="330" x2="614" y2="476" stroke="#00ff88" stroke-width="1.5" marker-end="url(#fg)" class="flow-line-slow"/>
+      <text x="790" y="408" font-family="Share Tech Mono,monospace" font-size="8" fill="#166534">Alert{severity, score}</text>
+
+      <!-- P5 → D2 (persist) -->
+      <line x1="860" y1="310" x2="270" y2="478" stroke="#60a5fa" stroke-width="1.5" marker-end="url(#fa)" class="flow-line-slow" stroke-dasharray="4,3"/>
+      <text x="540" y="450" font-family="Share Tech Mono,monospace" font-size="8" fill="#1e5f9f">persist alert + evidence</text>
+
+      <!-- P7 → SOC Analyst -->
+      <line x1="530" y1="535" x2="518" y2="578" stroke="#ffd060" stroke-width="2" marker-end="url(#fy)" class="flow-line"/>
+      <text x="540" y="562" font-family="Share Tech Mono,monospace" font-size="8" fill="#aa8800" text-anchor="middle">SSE stream</text>
+
+      <!-- Analyst → P7 (release) -->
+      <path d="M 565 580 Q 700 560 700 510 Q 700 460 820 430" stroke="#ff9020" stroke-width="1.5" fill="none" marker-end="url(#fo)" stroke-dasharray="5,3"/>
+      <text x="720" y="485" font-family="Share Tech Mono,monospace" font-size="8" fill="#aa5500">release(pid)</text>
+
+      <!-- P6 → P7 quarantine event -->
+      <line x1="680" y1="415" x2="610" y2="480" stroke="#ff9020" stroke-width="1.5" marker-end="url(#fo)" stroke-dasharray="4,3"/>
+      <text x="638" y="453" font-family="Share Tech Mono,monospace" font-size="8" fill="#aa5500">quarantine event</text>
+
+      <!-- Labels -->
+      <text x="550" y="30" font-family="Rajdhani,sans-serif" font-size="11" fill="#3d6a8f" text-anchor="middle" letter-spacing="1">DETECTION PIPELINE  ·  END-TO-END</text>
+    </svg>
+
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot" style="background:#00d4ff"></div>File event / telemetry data</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#ff4060"></div>Response action (suspend)</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#00ff88"></div>Alert notification</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#ffd060"></div>SOC interface (dashboard)</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#ff9020"></div>Analyst action (release)</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#60a5fa"></div>Persistence to DB</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- PAGE 3: DETAILED ARCHITECTURE                                      -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="page" id="page-detail">
+  <div class="page-header">
+    <div class="page-title">Detailed Component Architecture</div>
+    <div class="page-sub">Internal module breakdown — detection logic, scoring, API surface and data persistence</div>
+  </div>
+
+  <div class="diagram-wrap">
+    <div class="diagram-title">Internal Module Map</div>
+    <svg viewBox="0 0 1100 680" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="da" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto">
+          <polygon points="0 0, 7 2.5, 0 5" fill="#00d4ff" opacity="0.7"/>
+        </marker>
+        <marker id="da-r" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto">
+          <polygon points="0 0, 7 2.5, 0 5" fill="#ff4060" opacity="0.7"/>
+        </marker>
+        <marker id="da-g" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto">
+          <polygon points="0 0, 7 2.5, 0 5" fill="#00ff88" opacity="0.7"/>
+        </marker>
+        <marker id="da-y" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto">
+          <polygon points="0 0, 7 2.5, 0 5" fill="#ffd060" opacity="0.7"/>
+        </marker>
+      </defs>
+
+      <!-- ─── KERNEL SECTION ─── -->
+      <rect x="10" y="10" width="1080" height="98" rx="6" fill="#0d0518" stroke="#4c1d95" stroke-width="1.5" opacity="0.95"/>
+      <text x="22" y="32" font-family="Rajdhani,sans-serif" font-size="10" font-weight="700" fill="#7c3aed" letter-spacing="2">KERNEL SPACE</text>
+
+      <!-- driver.c internals -->
+      <rect x="30" y="42" width="220" height="55" rx="4" fill="#160820" stroke="#5b21b6" stroke-width="1"/>
+      <text x="140" y="60" font-family="Rajdhani,sans-serif" font-size="12" font-weight="600" fill="#c4b5fd" text-anchor="middle">driver.c</text>
+      <text x="60" y="78" font-family="Share Tech Mono,monospace" font-size="9" fill="#6d28d9">DriverEntry()</text>
+      <text x="60" y="90" font-family="Share Tech Mono,monospace" font-size="9" fill="#6d28d9">IRP callbacks</text>
+      <text x="170" y="78" font-family="Share Tech Mono,monospace" font-size="9" fill="#6d28d9">communication.h</text>
+      <text x="170" y="90" font-family="Share Tech Mono,monospace" font-size="9" fill="#6d28d9">FltSendMessage()</text>
+
+      <!-- What it intercepts -->
+      <rect x="270" y="42" width="300" height="55" rx="4" fill="#100618" stroke="#4c1d95" stroke-width="1"/>
+      <text x="420" y="60" font-family="Rajdhani,sans-serif" font-size="11" font-weight="600" fill="#a78bfa" text-anchor="middle">Intercepted Operations</text>
+      <text x="290" y="76" font-family="Share Tech Mono,monospace" font-size="9" fill="#6d28d9">CREATE</text>
+      <text x="350" y="76" font-family="Share Tech Mono,monospace" font-size="9" fill="#6d28d9">WRITE</text>
+      <text x="400" y="76" font-family="Share Tech Mono,monospace" font-size="9" fill="#6d28d9">RENAME</text>
+      <text x="460" y="76" font-family="Share Tech Mono,monospace" font-size="9" fill="#6d28d9">DELETE</text>
+      <text x="520" y="76" font-family="Share Tech Mono,monospace" font-size="9" fill="#6d28d9">DIR_ENUM</text>
+      <text x="290" y="90" font-family="Share Tech Mono,monospace" font-size="9" fill="#6d28d9">READ</text>
+      <text x="350" y="90" font-family="Share Tech Mono,monospace" font-size="9" fill="#6d28d9">VSS_DELETE</text>
+      <text x="460" y="90" font-family="Share Tech Mono,monospace" font-size="9" fill="#6d28d9">Shannon entropy computed inline</text>
+
+      <!-- Event struct -->
+      <rect x="590" y="42" width="220" height="55" rx="4" fill="#100618" stroke="#4c1d95" stroke-width="1"/>
+      <text x="700" y="60" font-family="Rajdhani,sans-serif" font-size="11" font-weight="600" fill="#a78bfa" text-anchor="middle">FileEvent (protobuf)</text>
+      <text x="608" y="76" font-family="Share Tech Mono,monospace" font-size="9" fill="#6d28d9">event_id · pid · process_name</text>
+      <text x="608" y="89" font-family="Share Tech Mono,monospace" font-size="9" fill="#6d28d9">file_path · entropy · timestamp_ns</text>
+
+      <!-- ─── RUST AGENT SECTION ─── -->
+      <rect x="10" y="125" width="1080" height="300" rx="6" fill="#060f1e" stroke="#1e4a7f" stroke-width="1.5" opacity="0.95"/>
+      <text x="22" y="147" font-family="Rajdhani,sans-serif" font-size="10" font-weight="700" fill="#2563eb" letter-spacing="2">RUST AGENT  ·  USER-MODE SERVICE  ·  LOCAL SYSTEM</text>
+
+      <!-- main.rs orchestrator -->
+      <rect x="30" y="155" width="160" height="100" rx="4" fill="#071224" stroke="#1e5f9f" stroke-width="1.5"/>
+      <text x="110" y="174" font-family="Rajdhani,sans-serif" font-size="12" font-weight="700" fill="#60a5fa" text-anchor="middle">main.rs</text>
+      <text x="40" y="190" font-family="Share Tech Mono,monospace" font-size="9" fill="#3b6ea5">tokio runtime</text>
+      <text x="40" y="203" font-family="Share Tech Mono,monospace" font-size="9" fill="#3b6ea5">mpsc channels</text>
+      <text x="40" y="216" font-family="Share Tech Mono,monospace" font-size="9" fill="#3b6ea5">broadcast alerts</text>
+      <text x="40" y="229" font-family="Share Tech Mono,monospace" font-size="9" fill="#3b6ea5">watch shutdown</text>
+      <text x="40" y="242" font-family="Share Tech Mono,monospace" font-size="9" fill="#3b6ea5">dedup 50ms window</text>
+      <text x="40" y="255" font-family="Share Tech Mono,monospace" font-size="9" fill="#1e4a7f">ML gate &gt;0.10</text>
+
+      <!-- communication.rs -->
+      <rect x="210" y="155" width="150" height="60" rx="4" fill="#071224" stroke="#1e3d5f" stroke-width="1"/>
+      <text x="285" y="174" font-family="Rajdhani,sans-serif" font-size="11" font-weight="600" fill="#93c5fd" text-anchor="middle">communication.rs</text>
+      <text x="220" y="190" font-family="Share Tech Mono,monospace" font-size="9" fill="#3b6ea5">DriverConnection</text>
+      <text x="220" y="203" font-family="Share Tech Mono,monospace" font-size="9" fill="#3b6ea5">Filter Mgr port</text>
+
+      <!-- config.rs -->
+      <rect x="210" y="230" width="150" height="55" rx="4" fill="#071224" stroke="#1e3d5f" stroke-width="1"/>
+      <text x="285" y="248" font-family="Rajdhani,sans-serif" font-size="11" font-weight="600" fill="#93c5fd" text-anchor="middle">config.rs</text>
+      <text x="220" y="264" font-family="Share Tech Mono,monospace" font-size="9" fill="#3b6ea5">AppConfig · TOML parse</text>
+      <text x="220" y="277" font-family="Share Tech Mono,monospace" font-size="9" fill="#3b6ea5">DetectorWeights</text>
+
+      <!-- ── Detector box ── -->
+      <rect x="385" y="155" width="320" height="190" rx="5" fill="#040c18" stroke="#0a4070" stroke-width="1.5"/>
+      <text x="545" y="174" font-family="Rajdhani,sans-serif" font-size="11" font-weight="700" fill="#60a5fa" text-anchor="middle" letter-spacing="1">DETECTOR REGISTRY</text>
+
+      <!-- individual detectors -->
+      <rect x="396" y="182" width="140" height="50" rx="3" fill="#071224" stroke="#1e3d5f" stroke-width="1"/>
+      <text x="466" y="198" font-family="Rajdhani,sans-serif" font-size="10" font-weight="600" fill="#60a5fa" text-anchor="middle">entropy_spike</text>
+      <text x="405" y="212" font-family="Share Tech Mono,monospace" font-size="8" fill="#3b6ea5">Shannon &gt; 7.0</text>
+      <text x="405" y="223" font-family="Share Tech Mono,monospace" font-size="8" fill="#3b6ea5">min 1024 bytes</text>
+      <text x="405" y="233" font-family="Share Tech Mono,monospace" font-size="8" fill="#1e4a7f">w=0.20</text>
+
+      <rect x="550" y="182" width="140" height="50" rx="3" fill="#071224" stroke="#1e3d5f" stroke-width="1"/>
+      <text x="620" y="198" font-family="Rajdhani,sans-serif" font-size="10" font-weight="600" fill="#60a5fa" text-anchor="middle">mass_write</text>
+      <text x="559" y="212" font-family="Share Tech Mono,monospace" font-size="8" fill="#3b6ea5">&gt;50 writes / 10s</text>
+      <text x="559" y="223" font-family="Share Tech Mono,monospace" font-size="8" fill="#3b6ea5">per-process count</text>
+      <text x="559" y="233" font-family="Share Tech Mono,monospace" font-size="8" fill="#1e4a7f">w=0.15</text>
+
+      <rect x="396" y="244" width="140" height="50" rx="3" fill="#071224" stroke="#1e3d5f" stroke-width="1"/>
+      <text x="466" y="260" font-family="Rajdhani,sans-serif" font-size="10" font-weight="600" fill="#60a5fa" text-anchor="middle">mass_rename_delete</text>
+      <text x="405" y="274" font-family="Share Tech Mono,monospace" font-size="8" fill="#3b6ea5">&gt;20 ops / 10s</text>
+      <text x="405" y="284" font-family="Share Tech Mono,monospace" font-size="8" fill="#3b6ea5">rename+delete ops</text>
+      <text x="405" y="295" font-family="Share Tech Mono,monospace" font-size="8" fill="#1e4a7f">w=0.15</text>
+
+      <rect x="550" y="244" width="140" height="50" rx="3" fill="#071224" stroke="#1e3d5f" stroke-width="1"/>
+      <text x="620" y="260" font-family="Rajdhani,sans-serif" font-size="10" font-weight="600" fill="#60a5fa" text-anchor="middle">ransom_note</text>
+      <text x="559" y="274" font-family="Share Tech Mono,monospace" font-size="8" fill="#3b6ea5">filename patterns</text>
+      <text x="559" y="284" font-family="Share Tech Mono,monospace" font-size="8" fill="#3b6ea5">10 known strings</text>
+      <text x="559" y="295" font-family="Share Tech Mono,monospace" font-size="8" fill="#1e4a7f">w=0.15</text>
+
+      <rect x="396" y="306" width="140" height="28" rx="3" fill="#071224" stroke="#1e3d5f" stroke-width="1"/>
+      <text x="466" y="320" font-family="Rajdhani,sans-serif" font-size="10" font-weight="600" fill="#60a5fa" text-anchor="middle">shadow_copy</text>
+      <text x="405" y="331" font-family="Share Tech Mono,monospace" font-size="8" fill="#3b6ea5">vssadmin · wbadmin  w=0.10</text>
+
+      <rect x="550" y="306" width="140" height="28" rx="3" fill="#071224" stroke="#1e3d5f" stroke-width="1"/>
+      <text x="620" y="320" font-family="Rajdhani,sans-serif" font-size="10" font-weight="600" fill="#60a5fa" text-anchor="middle">process_behavior</text>
+      <text x="559" y="331" font-family="Share Tech Mono,monospace" font-size="8" fill="#3b6ea5">ext explosion &gt;15  w=0.15</text>
+
+      <!-- extension_explosion last -->
+      <rect x="470" y="340" width="160" height="24" rx="3" fill="#071224" stroke="#1e3d5f" stroke-width="1"/>
+      <text x="550" y="356" font-family="Rajdhani,sans-serif" font-size="10" fill="#60a5fa" text-anchor="middle">extension_explosion  w=0.10</text>
+
+      <!-- Correlator + Inference -->
+      <rect x="730" y="155" width="165" height="80" rx="4" fill="#071224" stroke="#1e5f9f" stroke-width="1.5"/>
+      <text x="812" y="174" font-family="Rajdhani,sans-serif" font-size="12" font-weight="700" fill="#60a5fa" text-anchor="middle">correlation.rs</text>
+      <text x="742" y="192" font-family="Share Tech Mono,monospace" font-size="9" fill="#3b6ea5">60s sliding window</text>
+      <text x="742" y="205" font-family="Share Tech Mono,monospace" font-size="9" fill="#3b6ea5">weighted Σ + ML blend</text>
+      <text x="742" y="218" font-family="Share Tech Mono,monospace" font-size="9" fill="#3b6ea5">ProcessWindow per PID</text>
+      <text x="742" y="231" font-family="Share Tech Mono,monospace" font-size="9" fill="#3b6ea5">AggregatedScore → Alert</text>
+
+      <rect x="730" y="250" width="165" height="65" rx="4" fill="#071a10" stroke="#166534" stroke-width="1.5"/>
+      <text x="812" y="269" font-family="Rajdhani,sans-serif" font-size="12" font-weight="700" fill="#4ade80" text-anchor="middle">inference.rs</text>
+      <text x="742" y="287" font-family="Share Tech Mono,monospace" font-size="9" fill="#166534">ONNX Runtime session</text>
+      <text x="742" y="300" font-family="Share Tech Mono,monospace" font-size="9" fill="#166534">7-feature f32 tensor</text>
+      <text x="742" y="313" font-family="Share Tech Mono,monospace" font-size="9" fill="#166534">fallback=weighted avg</text>
+
+      <!-- quarantine + db -->
+      <rect x="730" y="330" width="165" height="65" rx="4" fill="#200505" stroke="#7f1d1d" stroke-width="1.5"/>
+      <text x="812" y="349" font-family="Rajdhani,sans-serif" font-size="12" font-weight="700" fill="#fca5a5" text-anchor="middle">quarantine.rs</text>
+      <text x="742" y="367" font-family="Share Tech Mono,monospace" font-size="9" fill="#7f1d1d">QuarantineManager</text>
+      <text x="742" y="380" font-family="Share Tech Mono,monospace" font-size="9" fill="#7f1d1d">→ quarantine_helper.exe</text>
+      <text x="742" y="393" font-family="Share Tech Mono,monospace" font-size="9" fill="#7f1d1d">suspend · resume · exit</text>
+
+      <!-- database -->
+      <rect x="920" y="155" width="155" height="240" rx="4" fill="#071224" stroke="#1e3d5f" stroke-width="1.5"/>
+      <text x="997" y="174" font-family="Rajdhani,sans-serif" font-size="12" font-weight="700" fill="#60a5fa" text-anchor="middle">database.rs</text>
+      <text x="930" y="192" font-family="Share Tech Mono,monospace" font-size="9" fill="#3b6ea5">SQLite · WAL mode</text>
+      <line x1="930" y1="200" x2="1065" y2="200" stroke="#1e3d5f" stroke-width="0.5"/>
+      <text x="930" y="214" font-family="Share Tech Mono,monospace" font-size="9" fill="#1e4a7f">alerts table</text>
+      <text x="930" y="227" font-family="Share Tech Mono,monospace" font-size="9" fill="#1e4a7f">  id · pid · proc_name</text>
+      <text x="930" y="240" font-family="Share Tech Mono,monospace" font-size="9" fill="#1e4a7f">  severity · risk_score</text>
+      <text x="930" y="253" font-family="Share Tech Mono,monospace" font-size="9" fill="#1e4a7f">  description · ts_ns</text>
+      <line x1="930" y1="262" x2="1065" y2="262" stroke="#1e3d5f" stroke-width="0.5"/>
+      <text x="930" y="276" font-family="Share Tech Mono,monospace" font-size="9" fill="#1e4a7f">quarantine table</text>
+      <text x="930" y="289" font-family="Share Tech Mono,monospace" font-size="9" fill="#1e4a7f">  pid · proc_name</text>
+      <text x="930" y="302" font-family="Share Tech Mono,monospace" font-size="9" fill="#1e4a7f">  status · ts_ns</text>
+      <line x1="930" y1="311" x2="1065" y2="311" stroke="#1e3d5f" stroke-width="0.5"/>
+      <text x="930" y="326" font-family="Share Tech Mono,monospace" font-size="9" fill="#1e4a7f">detector_logs table</text>
+      <text x="930" y="339" font-family="Share Tech Mono,monospace" font-size="9" fill="#1e4a7f">  detector · score</text>
+      <text x="930" y="352" font-family="Share Tech Mono,monospace" font-size="9" fill="#1e4a7f">  evidence · ts_ns</text>
+      <line x1="930" y1="362" x2="1065" y2="362" stroke="#1e3d5f" stroke-width="0.5"/>
+      <text x="930" y="376" font-family="Share Tech Mono,monospace" font-size="9" fill="#3b6ea5">Max 100MB · 5 rotated logs</text>
+
+      <!-- grpc_server -->
+      <rect x="30" y="290" width="160" height="130" rx="4" fill="#071a10" stroke="#166534" stroke-width="1.5"/>
+      <text x="110" y="310" font-family="Rajdhani,sans-serif" font-size="12" font-weight="700" fill="#4ade80" text-anchor="middle">grpc_server.rs</text>
+      <text x="40" y="328" font-family="Share Tech Mono,monospace" font-size="9" fill="#166534">127.0.0.1:50051</text>
+      <line x1="40" y1="335" x2="180" y2="335" stroke="#0f4a28" stroke-width="0.5"/>
+      <text x="40" y="348" font-family="Share Tech Mono,monospace" font-size="9" fill="#0f4a28">GetHealth</text>
+      <text x="40" y="361" font-family="Share Tech Mono,monospace" font-size="9" fill="#0f4a28">GetAlerts</text>
+      <text x="40" y="374" font-family="Share Tech Mono,monospace" font-size="9" fill="#0f4a28">StreamAlerts ↑ SSE</text>
+      <text x="40" y="387" font-family="Share Tech Mono,monospace" font-size="9" fill="#0f4a28">GetProcessRisk</text>
+      <text x="40" y="400" font-family="Share Tech Mono,monospace" font-size="9" fill="#0f4a28">GetQuarantined</text>
+      <text x="40" y="413" font-family="Share Tech Mono,monospace" font-size="9" fill="#0f4a28">ReleaseProcess</text>
+
+      <!-- ─── BRIDGE SECTION ─── -->
+      <rect x="10" y="445" width="1080" height="100" rx="6" fill="#040e08" stroke="#0f4a28" stroke-width="1.5" opacity="0.95"/>
+      <text x="22" y="465" font-family="Rajdhani,sans-serif" font-size="10" font-weight="700" fill="#166534" letter-spacing="2">NODE.JS BRIDGE  ·  EXPRESS  ·  127.0.0.1:3001</text>
+
+      <rect x="30" y="474" width="155" height="58" rx="3" fill="#061408" stroke="#0f4a28" stroke-width="1"/>
+      <text x="107" y="492" font-family="Rajdhani,sans-serif" font-size="10" fill="#4ade80" text-anchor="middle">grpc_client.js</text>
+      <text x="40" y="507" font-family="Share Tech Mono,monospace" font-size="8" fill="#0f4a28">proto stub → gRPC calls</text>
+      <text x="40" y="519" font-family="Share Tech Mono,monospace" font-size="8" fill="#0f4a28">callUnary() wrapper</text>
+      <text x="40" y="530" font-family="Share Tech Mono,monospace" font-size="8" fill="#0f4a28">5s health ping</text>
+
+      <rect x="200" y="474" width="200" height="58" rx="3" fill="#061408" stroke="#0f4a28" stroke-width="1"/>
+      <text x="300" y="492" font-family="Rajdhani,sans-serif" font-size="10" fill="#4ade80" text-anchor="middle">server.js REST routes</text>
+      <text x="210" y="507" font-family="Share Tech Mono,monospace" font-size="8" fill="#0f4a28">GET /api/health · /alerts · /processes</text>
+      <text x="210" y="519" font-family="Share Tech Mono,monospace" font-size="8" fill="#0f4a28">GET /api/quarantined · /detectors</text>
+      <text x="210" y="530" font-family="Share Tech Mono,monospace" font-size="8" fill="#0f4a28">POST /api/quarantined/release</text>
+
+      <rect x="415" y="474" width="160" height="58" rx="3" fill="#061408" stroke="#0f4a28" stroke-width="1"/>
+      <text x="495" y="492" font-family="Rajdhani,sans-serif" font-size="10" fill="#4ade80" text-anchor="middle">SSE Stream</text>
+      <text x="425" y="507" font-family="Share Tech Mono,monospace" font-size="8" fill="#0f4a28">GET /api/alerts/stream</text>
+      <text x="425" y="519" font-family="Share Tech Mono,monospace" font-size="8" fill="#0f4a28">gRPC StreamAlerts →</text>
+      <text x="425" y="530" font-family="Share Tech Mono,monospace" font-size="8" fill="#0f4a28">text/event-stream push</text>
+
+      <!-- ─── UI SECTION ─── -->
+      <rect x="10" y="565" width="1080" height="100" rx="6" fill="#0a0800" stroke="#92400e" stroke-width="1.5" opacity="0.95"/>
+      <text x="22" y="585" font-family="Rajdhani,sans-serif" font-size="10" font-weight="700" fill="#92400e" letter-spacing="2">REACT DASHBOARD  ·  VITE + TAILWIND  ·  BROWSER  ·  localhost:3001/ui</text>
+
+      <rect x="30" y="593" width="130" height="58" rx="3" fill="#120800" stroke="#92400e" stroke-width="1"/>
+      <text x="95" y="610" font-family="Rajdhani,sans-serif" font-size="10" fill="#fbbf24" text-anchor="middle">api/client.ts</text>
+      <text x="40" y="625" font-family="Share Tech Mono,monospace" font-size="8" fill="#7a4a00">fetch wrappers</text>
+      <text x="40" y="637" font-family="Share Tech Mono,monospace" font-size="8" fill="#7a4a00">SSE useEffect</text>
+      <text x="40" y="648" font-family="Share Tech Mono,monospace" font-size="8" fill="#7a4a00">types/index.ts</text>
+
+      <rect x="175" y="593" width="130" height="58" rx="3" fill="#120800" stroke="#7a3a00" stroke-width="1"/>
+      <text x="240" y="610" font-family="Rajdhani,sans-serif" font-size="10" fill="#fbbf24" text-anchor="middle">Dashboard</text>
+      <text x="185" y="625" font-family="Share Tech Mono,monospace" font-size="8" fill="#7a4a00">MetricsPanel</text>
+      <text x="185" y="637" font-family="Share Tech Mono,monospace" font-size="8" fill="#7a4a00">TopBar · Sidebar</text>
+      <text x="185" y="648" font-family="Share Tech Mono,monospace" font-size="8" fill="#7a4a00">health status</text>
+
+      <rect x="320" y="593" width="130" height="58" rx="3" fill="#120800" stroke="#7a3a00" stroke-width="1"/>
+      <text x="385" y="610" font-family="Rajdhani,sans-serif" font-size="10" fill="#fbbf24" text-anchor="middle">AlertFeed</text>
+      <text x="330" y="625" font-family="Share Tech Mono,monospace" font-size="8" fill="#7a4a00">severity badge</text>
+      <text x="330" y="637" font-family="Share Tech Mono,monospace" font-size="8" fill="#7a4a00">risk score bar</text>
+      <text x="330" y="648" font-family="Share Tech Mono,monospace" font-size="8" fill="#7a4a00">evidence list</text>
+
+      <rect x="465" y="593" width="140" height="58" rx="3" fill="#120800" stroke="#7a3a00" stroke-width="1"/>
+      <text x="535" y="610" font-family="Rajdhani,sans-serif" font-size="10" fill="#fbbf24" text-anchor="middle">ProcessRisk</text>
+      <text x="475" y="625" font-family="Share Tech Mono,monospace" font-size="8" fill="#7a4a00">per-process score</text>
+      <text x="475" y="637" font-family="Share Tech Mono,monospace" font-size="8" fill="#7a4a00">ml_score + weighted</text>
+      <text x="475" y="648" font-family="Share Tech Mono,monospace" font-size="8" fill="#7a4a00">live refresh</text>
+
+      <rect x="620" y="593" width="140" height="58" rx="3" fill="#120800" stroke="#7a3a00" stroke-width="1"/>
+      <text x="690" y="610" font-family="Rajdhani,sans-serif" font-size="10" fill="#fbbf24" text-anchor="middle">QuarantinePanel</text>
+      <text x="630" y="625" font-family="Share Tech Mono,monospace" font-size="8" fill="#7a4a00">suspended procs list</text>
+      <text x="630" y="637" font-family="Share Tech Mono,monospace" font-size="8" fill="#7a4a00">ReleaseProcess btn</text>
+      <text x="630" y="648" font-family="Share Tech Mono,monospace" font-size="8" fill="#7a4a00">→ POST release</text>
+
+      <!-- ─── INTER-SECTION ARROWS ─── -->
+      <!-- kernel → agent -->
+      <line x1="700" y1="108" x2="735" y2="135" stroke="#6d28d9" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#da)"/>
+      <text x="720" y="126" font-family="Share Tech Mono,monospace" font-size="8" fill="#5b21b6">comm port</text>
+
+      <!-- detectors → correlator -->
+      <line x1="706" y1="255" x2="728" y2="232" stroke="#00d4ff" stroke-width="1.5" marker-end="url(#da)" opacity="0.7"/>
+
+      <!-- correlator → quarantine -->
+      <line x1="812" y1="330" x2="812" y2="328" stroke="#ff4060" stroke-width="1.5" marker-end="url(#da-r)" opacity="0.8"/>
+
+      <!-- correlator → grpc -->
+      <line x1="730" y1="210" x2="192" y2="336" stroke="#00ff88" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#da-g)" opacity="0.8"/>
+      <text x="430" y="275" font-family="Share Tech Mono,monospace" font-size="8" fill="#0f4a28">alerts → broadcast</text>
+
+      <!-- quarantine → db -->
+      <line x1="895" y1="363" x2="920" y2="340" stroke="#ff4060" stroke-width="1.5" marker-end="url(#da-r)" opacity="0.6" stroke-dasharray="3,2"/>
+
+      <!-- grpc → bridge -->
+      <line x1="110" y1="420" x2="110" y2="443" stroke="#00ff88" stroke-width="1.5" marker-end="url(#da-g)"/>
+
+      <!-- bridge → ui -->
+      <line x1="200" y1="545" x2="200" y2="563" stroke="#ffd060" stroke-width="1.5" marker-end="url(#da-y)"/>
+      <text x="210" y="558" font-family="Share Tech Mono,monospace" font-size="8" fill="#aa8800">HTTP/SSE</text>
+
+    </svg>
+  </div>
+
+  <!-- Detector Weights Table -->
+  <div class="two-col">
+    <div class="diagram-wrap" style="margin-bottom:0">
+      <div class="diagram-title">Detector Weights & Triggers</div>
+      <table class="det-table">
+        <thead>
+          <tr>
+            <th>Detector</th>
+            <th>Trigger Condition</th>
+            <th>Weight</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="det-name">entropy_spike</span></td>
+            <td>Shannon entropy &gt; 7.0 on writes ≥1KB</td>
+            <td><div class="weight-bar"><div class="weight-fill" style="width:80px"></div><span class="weight-txt">0.20</span></div></td>
+          </tr>
+          <tr>
+            <td><span class="det-name">mass_write</span></td>
+            <td>&gt;50 writes in 10s window per process</td>
+            <td><div class="weight-bar"><div class="weight-fill" style="width:60px"></div><span class="weight-txt">0.15</span></div></td>
+          </tr>
+          <tr>
+            <td><span class="det-name">mass_rename_delete</span></td>
+            <td>&gt;20 rename/delete ops in 10s</td>
+            <td><div class="weight-bar"><div class="weight-fill" style="width:60px"></div><span class="weight-txt">0.15</span></div></td>
+          </tr>
+          <tr>
+            <td><span class="det-name">ransom_note</span></td>
+            <td>Filename matches 10 known ransom patterns</td>
+            <td><div class="weight-bar"><div class="weight-fill" style="width:60px"></div><span class="weight-txt">0.15</span></div></td>
+          </tr>
+          <tr>
+            <td><span class="det-name">process_behavior</span></td>
+            <td>&gt;15 unique extensions or &gt;50 dirs touched</td>
+            <td><div class="weight-bar"><div class="weight-fill" style="width:60px"></div><span class="weight-txt">0.15</span></div></td>
+          </tr>
+          <tr>
+            <td><span class="det-name">shadow_copy</span></td>
+            <td>vssadmin / wbadmin / bcdedit process</td>
+            <td><div class="weight-bar"><div class="weight-fill" style="width:40px"></div><span class="weight-txt">0.10</span></div></td>
+          </tr>
+          <tr>
+            <td><span class="det-name">extension_explosion</span></td>
+            <td>&gt;10 new file extensions in 30s</td>
+            <td><div class="weight-bar"><div class="weight-fill" style="width:40px"></div><span class="weight-txt">0.10</span></div></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="diagram-wrap" style="margin-bottom:0">
+      <div class="diagram-title">gRPC API Surface</div>
+      <table class="det-table">
+        <thead>
+          <tr><th>RPC Method</th><th>Type</th><th>Consumer</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="det-name">GetHealth</span></td>
+            <td style="color:var(--text2)">Unary</td>
+            <td style="color:var(--text3)">Bridge / Dashboard</td>
+          </tr>
+          <tr>
+            <td><span class="det-name">GetAlerts</span></td>
+            <td style="color:var(--text2)">Unary</td>
+            <td style="color:var(--text3)">Alert history page</td>
+          </tr>
+          <tr>
+            <td><span class="det-name">StreamAlerts</span></td>
+            <td style="color:var(--green)">Server stream</td>
+            <td style="color:var(--text3)">Live alert feed (SSE)</td>
+          </tr>
+          <tr>
+            <td><span class="det-name">GetProcessRisk</span></td>
+            <td style="color:var(--text2)">Unary</td>
+            <td style="color:var(--text3)">Process risk table</td>
+          </tr>
+          <tr>
+            <td><span class="det-name">GetQuarantined</span></td>
+            <td style="color:var(--text2)">Unary</td>
+            <td style="color:var(--text3)">Quarantine panel</td>
+          </tr>
+          <tr>
+            <td><span class="det-name">ReleaseProcess</span></td>
+            <td style="color:var(--orange)">Unary (write)</td>
+            <td style="color:var(--text3)">Analyst action</td>
+          </tr>
+          <tr>
+            <td><span class="det-name">GetDetectorLogs</span></td>
+            <td style="color:var(--text2)">Unary</td>
+            <td style="color:var(--text3)">Evidence drill-down</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<script>
+function showTab(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + id).classList.add('active');
+  event.target.classList.add('active');
+}
+</script>
+</body>
+</html>

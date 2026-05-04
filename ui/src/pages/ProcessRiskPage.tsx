@@ -222,7 +222,7 @@ export default function ProcessRiskPage() {
                       style={{
                         background: 'var(--bg-inset)',
                         borderRadius: '0 0 var(--radius-md) var(--radius-md)',
-                        borderTop: '1px solid rgba(255,255,255,0.03)',
+                        borderTop: '1px solid var(--border-subtle)',
                       }}
                     >
                       {/* Score Composition */}
@@ -299,7 +299,7 @@ export default function ProcessRiskPage() {
                                 {isInfoOpen && (
                                   <div
                                     className="mt-2 pt-2 text-[10px] leading-relaxed"
-                                    style={{ color: 'var(--text-secondary)', borderTop: '1px solid rgba(255,255,255,0.06)' }}
+                                    style={{ color: 'var(--text-secondary)', borderTop: '1px solid var(--border-subtle-strong)' }}
                                   >
                                     {DETECTOR_DESCRIPTIONS[det.detectorName] || 'No description available.'}
                                   </div>

@@ -7,6 +7,7 @@ import type {
   ConnectionState,
 } from './types';
 import { api, createAlertStream } from './api/client';
+import { useTheme } from './hooks/useTheme';
 import Sidebar from './components/Sidebar';
 import TopBar from './components/TopBar';
 import DashboardPage from './pages/DashboardPage';
@@ -44,6 +45,7 @@ export const AppDataContext = createContext<AppData>({
 export const useAppData = () => useContext(AppDataContext);
 
 export default function App() {
+  const { theme, toggleTheme } = useTheme();
   const [activePage, setActivePage] = useState<PageId>('dashboard');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [connection, setConnection] = useState<ConnectionState>('disconnected');
@@ -163,6 +165,8 @@ export default function App() {
             activePage={activePage}
             connection={connection}
             error={error}
+            theme={theme}
+            onToggleTheme={toggleTheme}
           />
           <main className="flex-1 overflow-y-auto custom-scroll p-6" style={{ background: 'var(--bg-base)' }}>
             {renderPage()}

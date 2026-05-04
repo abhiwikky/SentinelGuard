@@ -1,11 +1,15 @@
 import type { PageId } from '../App';
 import type { ConnectionState } from '../types';
+import type { Theme } from '../hooks/useTheme';
 import { Wifi, WifiOff, AlertTriangle } from 'lucide-react';
+import ThemeToggle from './ThemeToggle';
 
 interface TopBarProps {
   activePage: PageId;
   connection: ConnectionState;
   error: string | null;
+  theme: Theme;
+  onToggleTheme: () => void;
 }
 
 const PAGE_TITLES: Record<PageId, string> = {
@@ -15,7 +19,7 @@ const PAGE_TITLES: Record<PageId, string> = {
   quarantine: 'Quarantine Management',
 };
 
-export default function TopBar({ activePage, connection, error }: TopBarProps) {
+export default function TopBar({ activePage, connection, error, theme, onToggleTheme }: TopBarProps) {
   const connectionConfig = {
     connected: {
       icon: Wifi,
@@ -44,7 +48,8 @@ export default function TopBar({ activePage, connection, error }: TopBarProps) {
       className="shrink-0 flex items-center justify-between px-6 py-4"
       style={{
         background: 'var(--bg-surface)',
-        borderBottom: '1px solid rgba(255,255,255,0.04)',
+        borderBottom: '1px solid var(--border-subtle-strong)',
+        transition: 'background 0.35s ease, border-color 0.35s ease',
       }}
     >
       {/* Page Title */}
@@ -62,7 +67,7 @@ export default function TopBar({ activePage, connection, error }: TopBarProps) {
         </p>
       </div>
 
-      {/* Connection Status */}
+      {/* Right group: Theme toggle + Connection Status */}
       <div className="flex items-center gap-3">
         {error && (
           <span
@@ -73,6 +78,7 @@ export default function TopBar({ activePage, connection, error }: TopBarProps) {
             {error}
           </span>
         )}
+        <ThemeToggle theme={theme} onToggle={onToggleTheme} />
         <div
           className="neu-flat-sm flex items-center gap-2 px-3 py-2 cursor-default"
           title={connectionConfig.label}

@@ -45,11 +45,11 @@ export default function Sidebar({
       style={{
         width: collapsed ? '72px' : '240px',
         background: 'var(--bg-surface)',
-        borderRight: '1px solid rgba(255,255,255,0.04)',
+        borderRight: '1px solid var(--border-subtle-strong)',
       }}
     >
       {/* Logo */}
-      <div className="flex items-center gap-3 px-4 py-5 shrink-0" style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+      <div className="flex items-center gap-3 px-4 py-5 shrink-0" style={{ borderBottom: '1px solid var(--border-subtle-strong)' }}>
         <div
           className="neu-pressed-sm flex items-center justify-center shrink-0"
           style={{ width: 38, height: 38 }}
@@ -130,7 +130,7 @@ export default function Sidebar({
       </nav>
 
       {/* Collapse Toggle */}
-      <div className="px-3 py-3 shrink-0" style={{ borderTop: '1px solid rgba(255,255,255,0.04)' }}>
+      <div className="px-3 py-3 shrink-0" style={{ borderTop: '1px solid var(--border-subtle-strong)' }}>
         <button
           type="button"
           onClick={onToggleCollapse}

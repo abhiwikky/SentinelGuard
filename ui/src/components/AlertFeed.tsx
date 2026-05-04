@@ -138,7 +138,7 @@ export default function AlertFeed({ alerts, compact }: Props) {
                         style={{
                           background: 'var(--bg-inset)',
                           borderRadius: 'var(--radius-sm)',
-                          border: '1px solid rgba(255,255,255,0.03)',
+                          border: '1px solid var(--border-subtle)',
                         }}
                       >
                         {/* Context */}
